@@ -2,11 +2,12 @@
 
 export interface Skill {
   id: string;
-  tier: 1 | 2 | 3;
+  tier: 1 | 2 | 3 | 4;
   name: string;
   effect: string;
   requires: string[];
   locked?: boolean;
+  cost?: number;           // 소모 포인트 (기본 1)
   bonuses?: { stat: string; value: number }[];
 }
 
@@ -36,11 +37,17 @@ export const GODDESS_SKILLS: Skill[] = [
   { id: "t2_bad_a",  tier: 2, name: "배드 스테이터스 +1",  effect: "배드 스테이터스 강도 1 증가",  requires: ["t1_bad"],             bonuses: [{ stat: "배드", value: 1 }] },
   { id: "t2_bad_b",  tier: 2, name: "배드 스테이터스 +1",  effect: "배드 스테이터스 강도 1 증가",  requires: ["t1_bad"],             bonuses: [{ stat: "배드", value: 1 }] },
 
-  // ── Tier 3 (잠금) ────────────────────────────────────────────
-  { id: "t3_1", tier: 3, name: "???", effect: "미공개", requires: [], locked: true },
-  { id: "t3_2", tier: 3, name: "???", effect: "미공개", requires: [], locked: true },
-  { id: "t3_3", tier: 3, name: "???", effect: "미공개", requires: [], locked: true },
-  { id: "t3_4", tier: 3, name: "???", effect: "미공개", requires: [], locked: true },
+  // ── 고급 특성 (포인트 5 소모) ────────────────────────────────
+  { id: "adv_judge", tier: 3, name: "모든 판정 +1D",   effect: "모든 판정 굴림에 +1D 추가",   requires: [], cost: 5, bonuses: [{ stat: "판정D",    value: 1  }] },
+  { id: "adv_pdef",  tier: 3, name: "물리 방어력 +20", effect: "물리 방어력 20 증가",          requires: [], cost: 5, bonuses: [{ stat: "물리방어", value: 20 }] },
+  { id: "adv_mdef",  tier: 3, name: "마법 방어력 +20", effect: "마법 방어력 20 증가",          requires: [], cost: 5, bonuses: [{ stat: "마법방어", value: 20 }] },
+  { id: "adv_sp1",   tier: 3, name: "스킬 포인트 +1",  effect: "스킬 포인트 1 증가",           requires: [], cost: 5, bonuses: [{ stat: "스킬포인트", value: 1 }] },
+  { id: "adv_sp2",   tier: 3, name: "스킬 포인트 +1",  effect: "스킬 포인트 1 증가",           requires: [], cost: 5, bonuses: [{ stat: "스킬포인트", value: 1 }] },
+
+  // ── 에픽 특성 (잠금) ─────────────────────────────────────────
+  { id: "t4_1", tier: 4, name: "???", effect: "미공개", requires: [], locked: true },
+  { id: "t4_2", tier: 4, name: "???", effect: "미공개", requires: [], locked: true },
+  { id: "t4_3", tier: 4, name: "???", effect: "미공개", requires: [], locked: true },
 ];
 
 // ─── 스킬 브랜치 ──────────────────────────────────────────────
@@ -130,5 +137,7 @@ export const DEFAULT_LEVEL_STATE: LevelState = {
 };
 
 export function expNeeded(level: number): number {
-  return level * 10;
+  if (level <= 5)  return level * 10;               // 10·20·30·40·50
+  if (level <= 9)  return 50 + (level - 5) * 5;    // 55·60·65·70
+  return 100 + (level - 10) * 10;                   // 100·110·120 …
 }

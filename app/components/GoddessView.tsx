@@ -63,26 +63,35 @@ function SkillCard({
     );
   }
 
-  const isTier2 = skill.tier === 2;
+  const isTier2    = skill.tier === 2;
+  const isAdvanced = skill.tier === 3 && !skill.locked;
+  const cost       = skill.cost ?? 1;
 
-  const borderColor = isTier2
-    ? (picked ? "#5A8A5A" : reqsMet ? "#7ABD7A80" : "#E8E8E8")
-    : (picked ? GOLD_BDR  : pickable ? `${GOLD_BDR}90` : "#E8E8E8");
-  const bgColor = isTier2
-    ? (picked ? "#EEF8EE" : reqsMet ? "#FAFFF8" : "#F7F5F0")
-    : (picked ? GOLD_LIGHT : pickable ? "#FAFAF8" : "#F7F5F0");
-  const textColor = isTier2
-    ? (picked ? "#3A7A3A" : reqsMet ? "#444" : "#AAA")
-    : (picked ? "#8B6914" : pickable ? "#444" : "#AAA");
+  const borderColor = isAdvanced
+    ? (picked ? "#7B5EA7" : pickable ? "#B39DDB90" : "#E8E8E8")
+    : isTier2
+      ? (picked ? "#5A8A5A" : reqsMet ? "#7ABD7A80" : "#E8E8E8")
+      : (picked ? GOLD_BDR  : pickable ? `${GOLD_BDR}90` : "#E8E8E8");
+  const bgColor = isAdvanced
+    ? (picked ? "#F0E9FF" : pickable ? "#FAF6FF" : "#F7F5F0")
+    : isTier2
+      ? (picked ? "#EEF8EE" : reqsMet ? "#FAFFF8" : "#F7F5F0")
+      : (picked ? GOLD_LIGHT : pickable ? "#FAFAF8" : "#F7F5F0");
+  const textColor = isAdvanced
+    ? (picked ? "#5B2D8E" : pickable ? "#444" : "#AAA")
+    : isTier2
+      ? (picked ? "#3A7A3A" : reqsMet ? "#444" : "#AAA")
+      : (picked ? "#8B6914" : pickable ? "#444" : "#AAA");
+  const borderStyle = (picked || (!isTier2 && !isAdvanced)) ? "solid" : "dashed";
 
   return (
     <button
       onClick={() => pickable && onPick()}
-      title={skill.effect}
+      title={`${skill.effect}${cost > 1 ? ` (포인트 ${cost} 소모)` : ""}`}
       style={{
         width: CARD_W, minHeight: 48, flexShrink: 0,
         padding: "9px 12px", borderRadius: 8,
-        border: `2px ${(picked || !isTier2) ? "solid" : "dashed"} ${borderColor}`,
+        border: `2px ${borderStyle} ${borderColor}`,
         background: bgColor, color: textColor,
         fontSize: "12px", fontWeight: picked ? 700 : 500,
         cursor: pickable ? "pointer" : "default",
@@ -91,8 +100,20 @@ function SkillCard({
         lineHeight: 1.4, wordBreak: "keep-all",
       }}
     >
-      {picked && <span style={{ marginRight: 4, fontSize: "10px" }}>✓</span>}
-      {skill.name}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 4 }}>
+        <span>
+          {picked && <span style={{ marginRight: 4, fontSize: "10px" }}>✓</span>}
+          {skill.name}
+        </span>
+        {isAdvanced && !picked && (
+          <span style={{
+            fontSize: "9px", fontWeight: 700, flexShrink: 0,
+            background: pickable ? "#7B5EA7" : "#CCC",
+            color: "#fff", borderRadius: 3, padding: "1px 5px",
+            marginTop: 1,
+          }}>×{cost}</span>
+        )}
+      </div>
     </button>
   );
 }
@@ -144,7 +165,7 @@ function BranchView({
   const getSkill     = (id: string) => GODDESS_SKILLS.find(s => s.id === id)!;
   const isPicked     = (id: string) => pickedSkills.includes(id);
   const canPickSkill = (s: Skill) =>
-    !s.locked && !isPicked(s.id) && availablePoints > 0 &&
+    !s.locked && !isPicked(s.id) && availablePoints >= (s.cost ?? 1) &&
     s.requires.every(r => isPicked(r));
 
   const t1AllPicked = branch.t1.every(isPicked);
@@ -224,19 +245,20 @@ function EffectsPanel({ pickedSkills }: { pickedSkills: string[] }) {
     { stat: "마법방어", label: "마법 방어력",    unit: "" },
     { stat: "명중",   label: "명중",              unit: "" },
     { stat: "리액션", label: "리액션",            unit: "" },
-    { stat: "드롭",   label: "드롭 보너스",       unit: "D" },
-    { stat: "페이트", label: "페이트 상한",       unit: "" },
-    { stat: "배드",   label: "배드 스테이터스",   unit: "" },
+    { stat: "드롭",     label: "드롭 보너스",       unit: "D" },
+    { stat: "페이트",   label: "페이트 상한",       unit: "" },
+    { stat: "배드",     label: "배드 스테이터스",   unit: "" },
+    { stat: "판정D",    label: "판정 주사위",       unit: "D" },
+    { stat: "스킬포인트", label: "스킬 포인트",     unit: "" },
   ];
 
   const active = rows.filter(r => (totals[r.stat] ?? 0) > 0);
 
   return (
     <div style={{
-      width: 185, flexShrink: 0,
+      width: "100%",
       background: GOLD_LIGHT, border: `1px solid ${GOLD_BDR}`,
       borderRadius: 10, padding: "14px",
-      alignSelf: "flex-start",
     }}>
       <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.15em", color: GOLD, marginBottom: 12 }}>
         ✦ 적용 효과
@@ -271,6 +293,46 @@ function EffectsPanel({ pickedSkills }: { pickedSkills: string[] }) {
         fontSize: "10px", color: "#AAA",
       }}>
         선택된 특성: <span style={{ color: GOLD, fontWeight: 700 }}>{pickedSkills.length}</span>개
+      </div>
+    </div>
+  );
+}
+
+// ── LogPanel ───────────────────────────────────────────────────
+
+function LogPanel({ expLog }: { expLog: ExpLogEntry[] }) {
+  return (
+    <div style={{
+      width: "100%",
+      background: "#fff", border: "1px solid #E8E3DA",
+      borderRadius: 10, padding: "12px 14px",
+    }}>
+      <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.15em", color: "#AAA", marginBottom: 10 }}>
+        ✦ 활동 로그
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: "calc(100vh - 120px)", overflowY: "auto" }}>
+        {expLog.map(e => (
+          <div key={e.id} style={{
+            fontSize: "11px", padding: "5px 8px",
+            background: e.levelUp ? "#FFF5F5" : "#FAFAF8",
+            borderRadius: 5,
+            borderLeft: `2px solid ${e.levelUp ? "#C0392B" : GOLD_BDR}`,
+            lineHeight: 1.5,
+          }}>
+            <div style={{ color: "#CCC", fontSize: "10px", marginBottom: 1 }}>{e.timestamp}</div>
+            {e.levelUp ? (
+              <span style={{ color: "#C0392B", fontWeight: 700, fontSize: "11px" }}>
+                ✦ Lv.{e.levelUp.from} → {e.levelUp.to} 레벨업!
+              </span>
+            ) : (
+              <div>
+                <span style={{ fontWeight: 600, color: "#444" }}>{e.character}</span>
+                <span style={{ color: GOLD, fontWeight: 700 }}> +{e.amount}</span>
+                <span style={{ color: "#AAA", fontSize: "10px" }}> EXP</span>
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -337,12 +399,13 @@ export default function GoddessView({ mob }: { mob: boolean }) {
   const pickSkill = (skill: Skill) => {
     if (skill.locked)                                                 return;
     if (state.pickedSkills.includes(skill.id))                       return;
-    if (state.availablePoints <= 0)                                  return;
+    const cost = skill.cost ?? 1;
+    if (state.availablePoints < cost)                                 return;
     if (!skill.requires.every(r => state.pickedSkills.includes(r)))  return;
     save({
       ...state,
       pickedSkills: [...state.pickedSkills, skill.id],
-      availablePoints: state.availablePoints - 1,
+      availablePoints: state.availablePoints - cost,
     });
   };
 
@@ -369,11 +432,21 @@ export default function GoddessView({ mob }: { mob: boolean }) {
   const needed     = expNeeded(state.level);
   const expPct     = Math.min(100, (state.currentExp / needed) * 100);
   const canLevelUp = state.currentExp >= needed;
-  const t3         = GODDESS_SKILLS.filter(s => s.tier === 3);
+  const t3adv      = GODDESS_SKILLS.filter(s => s.tier === 3);
+  const t4epic     = GODDESS_SKILLS.filter(s => s.tier === 4);
   const pad        = mob ? "20px 16px 80px" : "28px 48px 80px";
 
   return (
-    <div style={{ maxWidth: 900, padding: pad }}>
+    <div style={{
+      display: mob ? "block" : "flex",
+      alignItems: "flex-start",
+      gap: 20,
+      padding: pad,
+      maxWidth: 1160,
+    }}>
+
+      {/* ── 메인 컬럼 ─────────────────────────────────────────── */}
+      <div style={{ flex: 1, minWidth: 0 }}>
 
       {/* ── 프로필 헤더 ───────────────────────────────────────── */}
       <div style={{
@@ -407,7 +480,7 @@ export default function GoddessView({ mob }: { mob: boolean }) {
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
             <h1 style={{ fontFamily: "'Noto Serif KR',serif", fontSize: mob ? "20px" : "24px", fontWeight: 700, color: "#2a2a2a", margin: 0 }}>
-              여신 특성
+              페이스:??
             </h1>
             <div style={{ background: GOLD, color: "#fff", borderRadius: 6, padding: "3px 12px", fontSize: "14px", fontWeight: 700 }}>
               Lv. {state.level}
@@ -507,11 +580,30 @@ export default function GoddessView({ mob }: { mob: boolean }) {
               ))}
             </div>
 
-            {/* Tier 3 */}
+            {/* 고급 특성 */}
             <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px dashed #E8E8E8" }}>
-              <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.2em", color: "#BBB", marginBottom: 10 }}>◆ TIER 3</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.2em", color: "#9B7AC4" }}>◆ 고급 특성</div>
+                <div style={{ fontSize: "10px", color: "#AAA" }}>— 특성 포인트 5점 소모</div>
+              </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {t3.map(s => (
+                {t3adv.map(s => {
+                  const picked   = state.pickedSkills.includes(s.id);
+                  const pickable = !picked && state.availablePoints >= (s.cost ?? 1);
+                  return (
+                    <SkillCard key={s.id} skill={s}
+                      picked={picked} pickable={pickable} reqsMet={true}
+                      onPick={() => pickSkill(s)} />
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 에픽 특성 */}
+            <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px dashed #F0E8E8" }}>
+              <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.2em", color: "#DDB8B8", marginBottom: 10 }}>◆ 에픽 특성</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {t4epic.map(s => (
                   <SkillCard key={s.id} skill={s} picked={false} pickable={false} reqsMet={false} onPick={() => {}} />
                 ))}
               </div>
@@ -520,44 +612,31 @@ export default function GoddessView({ mob }: { mob: boolean }) {
           </div>
 
           {/* 효과 패널 */}
-          <EffectsPanel pickedSkills={state.pickedSkills} />
+          <div style={{ width: mob ? "100%" : 185, flexShrink: 0, alignSelf: "flex-start" }}>
+            <EffectsPanel pickedSkills={state.pickedSkills} />
+          </div>
+
         </div>
       </div>
 
-      {/* ── 활동 로그 ─────────────────────────────────────────── */}
-      {state.expLog.length > 0 && (
-        <div style={{ background: "#fff", border: "1px solid #E8E3DA", borderRadius: 10, padding: "18px 20px" }}>
-          <div style={{ fontSize: "12px", fontWeight: 600, color: "#888", letterSpacing: "0.08em", marginBottom: 12 }}>활동 로그</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 280, overflowY: "auto" }}>
-            {state.expLog.map(e => (
-              <div key={e.id} style={{
-                fontSize: "12px", padding: "8px 12px",
-                background: e.levelUp ? "#FFF5F5" : "#FAFAF8",
-                borderRadius: 6,
-                borderLeft: `3px solid ${e.levelUp ? "#C0392B" : GOLD_BDR}`,
-                lineHeight: 1.6,
-              }}>
-                <span style={{ color: "#BBB", marginRight: 8, fontSize: "11px" }}>{e.timestamp}</span>
-                {e.levelUp ? (
-                  <span style={{ color: "#C0392B", fontWeight: 700 }}>
-                    ✦ Lv.{e.levelUp.from} → Lv.{e.levelUp.to} 레벨업!
-                    <span style={{ fontWeight: 400, color: "#AAA", fontSize: "11px", marginLeft: 6 }}>
-                      (EXP {e.prevExp} → {e.newExp})
-                    </span>
-                  </span>
-                ) : (
-                  <>
-                    <span style={{ fontWeight: 600, color: "#444" }}>{e.character}</span>
-                    <span style={{ color: "#777" }}> 경험치 </span>
-                    <span style={{ color: GOLD, fontWeight: 700 }}>+{e.amount}</span>
-                    <span style={{ color: "#AAA", fontSize: "11px" }}> ({e.prevExp}→{e.newExp})</span>
-                  </>
-                )}
-              </div>
-            ))}
-          </div>
+      </div>{/* ── 메인 컬럼 끝 ─── */}
+
+      {/* ── 활동 로그 사이드바 ─────────────────────────────── */}
+      {!mob && state.expLog.length > 0 && (
+        <div style={{
+          width: 240, flexShrink: 0,
+          position: "sticky", top: 20,
+          alignSelf: "flex-start",
+        }}>
+          <LogPanel expLog={state.expLog} />
         </div>
       )}
+      {mob && state.expLog.length > 0 && (
+        <div style={{ marginTop: 16 }}>
+          <LogPanel expLog={state.expLog} />
+        </div>
+      )}
+
     </div>
   );
 }

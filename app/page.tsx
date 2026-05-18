@@ -324,7 +324,7 @@ export default function NationsWiki() {
           {/* 커뮤니티 */}
           <div style={{fontSize:"10px",fontWeight:500,letterSpacing:"0.15em",color:"#6b6560",padding:"16px 22px 8px"}}>커뮤니티</div>
           {([
-            { type: "goddess",    icon: "✨", label: "여신 특성",   color: "#C8A020" },
+            { type: "goddess",    icon: "✨", label: "페이스:??",   color: "#C8A020" },
             { type: "silver-road",icon: "🪙", label: "실버로드",    color: "#2A5F9E" },
             { type: "elin",       icon: "🌸", label: "엘린",        color: "#B85C6E" },
           ] as const).map(item => {
