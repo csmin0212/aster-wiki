@@ -143,9 +143,29 @@ export default function SilverRoadView({ mob }: { mob: boolean }) {
     setPending(false);
   };
 
-  // ── 로그 항목 삭제 ───────────────────────────────────────────
+  // ── 로그 항목 삭제 (수치 역산) ──────────────────────────────
   const deleteLogEntry = (id: string) => {
-    save({ ...state, salesLog: state.salesLog.filter(e => e.id !== id) });
+    const entry  = state.salesLog.find(e => e.id === id);
+    if (!entry) return;
+    const newLog = state.salesLog.filter(e => e.id !== id);
+
+    if (entry.levelUp) {
+      // 레벨업 항목 → 레벨·판매액·혜택 되돌리기
+      save({
+        ...state,
+        level:        entry.levelUp - 1,
+        currentSales: entry.prevSales,
+        pickedPerks:  state.pickedPerks.filter(p => p.level !== entry.levelUp),
+        salesLog:     newLog,
+      });
+    } else {
+      // 일반 판매 항목 → 판매액 차감
+      save({
+        ...state,
+        currentSales: Math.max(0, state.currentSales - entry.amount),
+        salesLog:     newLog,
+      });
+    }
   };
 
   // ── 리셋 ─────────────────────────────────────────────────────

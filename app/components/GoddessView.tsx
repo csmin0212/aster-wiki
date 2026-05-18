@@ -423,9 +423,29 @@ export default function GoddessView({ mob }: { mob: boolean }) {
     });
   };
 
-  // ── 로그 항목 삭제 ───────────────────────────────────────────
+  // ── 로그 항목 삭제 (수치 역산) ──────────────────────────────
   const deleteLogEntry = (id: string) => {
-    save({ ...state, expLog: state.expLog.filter(e => e.id !== id) });
+    const entry  = state.expLog.find(e => e.id === id);
+    if (!entry) return;
+    const newLog = state.expLog.filter(e => e.id !== id);
+
+    if (entry.levelUp) {
+      // 레벨업 항목 → 레벨·포인트 되돌리기
+      save({
+        ...state,
+        level:           Math.max(1, state.level - 1),
+        currentExp:      entry.prevExp,
+        availablePoints: Math.max(0, state.availablePoints - 1),
+        expLog:          newLog,
+      });
+    } else {
+      // 일반 EXP 항목 → 경험치 차감
+      save({
+        ...state,
+        currentExp: Math.max(0, state.currentExp - entry.amount),
+        expLog:     newLog,
+      });
+    }
   };
 
   // ── 리셋 ─────────────────────────────────────────────────────
