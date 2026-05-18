@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSharedState } from '../lib/useSharedState';
 const BLUE        = "#2A5F9E";
 const BLUE_BDR    = "#7AAFD4";
@@ -75,6 +75,13 @@ export default function SilverRoadView({ mob }: { mob: boolean }) {
   const [goldInput, setGold]        = useState('');
   const [pendingChoice, setPending] = useState(false);
   const [imgErr, setImgErr]         = useState(false);
+  const [ctx, setCtx]               = useState<{ id: string; x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    const close = () => setCtx(null);
+    window.addEventListener('click', close);
+    return () => window.removeEventListener('click', close);
+  }, []);
 
   if (!loaded) return (
     <div style={{ padding: "60px 48px", color: "#AAA", fontSize: "14px" }}>불러오는 중…</div>
@@ -134,6 +141,11 @@ export default function SilverRoadView({ mob }: { mob: boolean }) {
       salesLog: [entry, ...state.salesLog].slice(0, 50),
     });
     setPending(false);
+  };
+
+  // ── 로그 항목 삭제 ───────────────────────────────────────────
+  const deleteLogEntry = (id: string) => {
+    save({ ...state, salesLog: state.salesLog.filter(e => e.id !== id) });
   };
 
   // ── 리셋 ─────────────────────────────────────────────────────
@@ -394,24 +406,26 @@ export default function SilverRoadView({ mob }: { mob: boolean }) {
       {/* ── 거래 기록 ─────────────────────────────────────── */}
       {state.salesLog.length > 0 && (
         <div style={{ background: "#fff", border: "1px solid #E8E3DA", borderRadius: 10, padding: "18px 20px" }}>
-          <div style={{ fontSize: "12px", fontWeight: 600, color: "#888", letterSpacing: "0.08em", marginBottom: 12 }}>거래 기록</div>
+          <div style={{ fontSize: "12px", fontWeight: 600, color: "#888", letterSpacing: "0.08em", marginBottom: 12 }}>
+            거래 기록 <span style={{ fontWeight: 400, opacity: 0.6, fontSize: "11px" }}>(우클릭 → 삭제)</span>
+          </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 280, overflowY: "auto" }}>
             {state.salesLog.map(e => (
-              <div key={e.id} style={{
-                fontSize: "12px", padding: "8px 12px",
-                background: e.levelUp ? "#EEF4FF" : "#FAFAF8",
-                borderRadius: 6,
-                borderLeft: `3px solid ${e.levelUp ? BLUE : BLUE_BDR + "60"}`,
-                lineHeight: 1.6,
-              }}>
+              <div key={e.id}
+                onContextMenu={ev => { ev.preventDefault(); ev.stopPropagation(); setCtx({ id: e.id, x: ev.clientX, y: ev.clientY }); }}
+                style={{
+                  fontSize: "12px", padding: "8px 12px",
+                  background: e.levelUp ? "#EEF4FF" : "#FAFAF8",
+                  borderRadius: 6,
+                  borderLeft: `3px solid ${e.levelUp ? BLUE : BLUE_BDR + "60"}`,
+                  lineHeight: 1.6, cursor: "context-menu", userSelect: "none",
+                }}>
                 <span style={{ color: "#BBB", marginRight: 8, fontSize: "11px" }}>{e.timestamp}</span>
                 {e.levelUp ? (
                   <span style={{ color: BLUE, fontWeight: 700 }}>
                     ✦ Lv.{e.levelUp - 1} → Lv.{e.levelUp} 달성!
                     {e.perkLabel && (
-                      <span style={{ fontWeight: 400, color: "#888", fontSize: "11px", marginLeft: 6 }}>
-                        ({e.perkLabel})
-                      </span>
+                      <span style={{ fontWeight: 400, color: "#888", fontSize: "11px", marginLeft: 6 }}>({e.perkLabel})</span>
                     )}
                   </span>
                 ) : (
@@ -425,6 +439,22 @@ export default function SilverRoadView({ mob }: { mob: boolean }) {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {ctx && (
+        <div onClick={e => e.stopPropagation()} style={{
+          position: "fixed", left: ctx.x, top: ctx.y,
+          background: "#fff", border: "1px solid #E0DDD8",
+          borderRadius: 7, boxShadow: "0 4px 16px rgba(0,0,0,0.13)",
+          zIndex: 9999, overflow: "hidden", minWidth: 110,
+        }}>
+          <button onClick={() => { deleteLogEntry(ctx.id); setCtx(null); }} style={{
+            display: "block", width: "100%", padding: "9px 14px",
+            textAlign: "left", background: "transparent", border: "none",
+            fontSize: "12px", color: "#E74C3C", cursor: "pointer",
+            fontFamily: "'Noto Sans KR',sans-serif",
+          }}>🗑 삭제</button>
         </div>
       )}
     </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   GODDESS_SKILLS, SKILL_BRANCHES, SkillBranch, Skill,
   GoddessState, ExpLogEntry,
@@ -299,25 +299,32 @@ function EffectsPanel({ pickedSkills }: { pickedSkills: string[] }) {
 
 // ── LogPanel ───────────────────────────────────────────────────
 
-function LogPanel({ expLog }: { expLog: ExpLogEntry[] }) {
+function LogPanel({ expLog, onDelete }: { expLog: ExpLogEntry[], onDelete: (id: string) => void }) {
+  const [ctx, setCtx] = useState<{ id: string; x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    const close = () => setCtx(null);
+    window.addEventListener('click', close);
+    return () => window.removeEventListener('click', close);
+  }, []);
+
   return (
-    <div style={{
-      width: "100%",
-      background: "#fff", border: "1px solid #E8E3DA",
-      borderRadius: 10, padding: "12px 14px",
-    }}>
+    <div style={{ width: "100%", background: "#fff", border: "1px solid #E8E3DA", borderRadius: 10, padding: "12px 14px" }}>
       <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.15em", color: "#AAA", marginBottom: 10 }}>
-        ✦ 활동 로그
+        ✦ 활동 로그 <span style={{ fontWeight: 400, opacity: 0.6 }}>(우클릭 → 삭제)</span>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: "calc(100vh - 120px)", overflowY: "auto" }}>
         {expLog.map(e => (
-          <div key={e.id} style={{
-            fontSize: "11px", padding: "5px 8px",
-            background: e.levelUp ? "#FFF5F5" : "#FAFAF8",
-            borderRadius: 5,
-            borderLeft: `2px solid ${e.levelUp ? "#C0392B" : GOLD_BDR}`,
-            lineHeight: 1.5,
-          }}>
+          <div key={e.id}
+            onContextMenu={ev => { ev.preventDefault(); ev.stopPropagation(); setCtx({ id: e.id, x: ev.clientX, y: ev.clientY }); }}
+            style={{
+              fontSize: "11px", padding: "5px 8px",
+              background: e.levelUp ? "#FFF5F5" : "#FAFAF8",
+              borderRadius: 5,
+              borderLeft: `2px solid ${e.levelUp ? "#C0392B" : GOLD_BDR}`,
+              lineHeight: 1.5, cursor: "context-menu", userSelect: "none",
+            }}
+          >
             <div style={{ color: "#CCC", fontSize: "10px", marginBottom: 1 }}>{e.timestamp}</div>
             {e.levelUp ? (
               <span style={{ color: "#C0392B", fontWeight: 700, fontSize: "11px" }}>
@@ -333,6 +340,22 @@ function LogPanel({ expLog }: { expLog: ExpLogEntry[] }) {
           </div>
         ))}
       </div>
+
+      {ctx && (
+        <div onClick={e => e.stopPropagation()} style={{
+          position: "fixed", left: ctx.x, top: ctx.y,
+          background: "#fff", border: "1px solid #E0DDD8",
+          borderRadius: 7, boxShadow: "0 4px 16px rgba(0,0,0,0.13)",
+          zIndex: 9999, overflow: "hidden", minWidth: 110,
+        }}>
+          <button onClick={() => { onDelete(ctx.id); setCtx(null); }} style={{
+            display: "block", width: "100%", padding: "9px 14px",
+            textAlign: "left", background: "transparent", border: "none",
+            fontSize: "12px", color: "#E74C3C", cursor: "pointer",
+            fontFamily: "'Noto Sans KR',sans-serif",
+          }}>🗑 삭제</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -343,8 +366,6 @@ export default function GoddessView({ mob }: { mob: boolean }) {
   const { state, save, loaded }  = useSharedState<GoddessState>('goddess', DEFAULT_GODDESS_STATE);
   const [charInput, setChar]    = useState('');
   const [expInput,  setExp]     = useState('');
-  const [decInput,  setDec]     = useState('');
-  const [showDec,   setShowDec] = useState(false);
   const [imgErr,    setImgErr]  = useState(false);
 
   if (!loaded) return (
@@ -402,12 +423,9 @@ export default function GoddessView({ mob }: { mob: boolean }) {
     });
   };
 
-  // ── 경험치 감소 ──────────────────────────────────────────────
-  const decreaseExp = () => {
-    const amt = parseInt(decInput);
-    if (isNaN(amt) || amt <= 0) return;
-    save({ ...state, currentExp: Math.max(0, state.currentExp - amt) });
-    setDec(''); setShowDec(false);
+  // ── 로그 항목 삭제 ───────────────────────────────────────────
+  const deleteLogEntry = (id: string) => {
+    save({ ...state, expLog: state.expLog.filter(e => e.id !== id) });
   };
 
   // ── 리셋 ─────────────────────────────────────────────────────
@@ -534,20 +552,6 @@ export default function GoddessView({ mob }: { mob: boolean }) {
           <Btn label="추가" onClick={addExp} variant="primary" />
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap", alignItems: "center" }}>
-          {!showDec ? (
-            <Btn label="경험치 감소" onClick={() => setShowDec(true)} />
-          ) : (
-            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <input
-                type="number" placeholder="감소량" value={decInput}
-                onChange={e => setDec(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && decreaseExp()}
-                style={{ width: 72, padding: "7px 10px", border: "1px solid #DDD", borderRadius: 6, fontSize: "12px", outline: "none" }}
-              />
-              <button onClick={decreaseExp} style={{ padding: "7px 12px", background: "#E67E22", color: "#fff", border: "none", borderRadius: 6, fontSize: "12px", cursor: "pointer" }}>적용</button>
-              <button onClick={() => { setShowDec(false); setDec(''); }} style={{ padding: "7px 10px", background: "#F5F3EE", color: "#777", border: "1px solid #E0DDD8", borderRadius: 6, fontSize: "12px", cursor: "pointer" }}>✕</button>
-            </div>
-          )}
           <Btn label="스킬 초기화" onClick={skillReset} />
           <Btn label="하드 리셋"   onClick={hardReset}  variant="danger" />
         </div>
@@ -621,12 +625,12 @@ export default function GoddessView({ mob }: { mob: boolean }) {
           position: "sticky", top: 20,
           alignSelf: "flex-start",
         }}>
-          <LogPanel expLog={state.expLog} />
+          <LogPanel expLog={state.expLog} onDelete={deleteLogEntry} />
         </div>
       )}
       {mob && state.expLog.length > 0 && (
         <div style={{ marginTop: 16 }}>
-          <LogPanel expLog={state.expLog} />
+          <LogPanel expLog={state.expLog} onDelete={deleteLogEntry} />
         </div>
       )}
 
