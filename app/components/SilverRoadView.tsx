@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-
-const STORAGE_KEY = 'aster-silver-road';
+import { useState } from 'react';
+import { useSharedState } from '../lib/useSharedState';
 const BLUE        = "#2A5F9E";
 const BLUE_BDR    = "#7AAFD4";
 
@@ -71,21 +70,15 @@ const DEFAULT_STATE: SRState = {
 // ─── 컴포넌트 ────────────────────────────────────────────────
 
 export default function SilverRoadView({ mob }: { mob: boolean }) {
-  const [state, setState]           = useState<SRState>(DEFAULT_STATE);
+  const { state, save, loaded }     = useSharedState<SRState>('silver-road', DEFAULT_STATE);
   const [itemInput, setItem]        = useState('');
   const [goldInput, setGold]        = useState('');
   const [pendingChoice, setPending] = useState(false);
   const [imgErr, setImgErr]         = useState(false);
 
-  useEffect(() => {
-    const s = localStorage.getItem(STORAGE_KEY);
-    if (s) { try { setState(JSON.parse(s)); } catch {} }
-  }, []);
-
-  const save = (s: SRState) => {
-    setState(s);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
-  };
+  if (!loaded) return (
+    <div style={{ padding: "60px 48px", color: "#AAA", fontSize: "14px" }}>불러오는 중…</div>
+  );
 
   // ── 판매 추가 ────────────────────────────────────────────────
   const addSale = () => {

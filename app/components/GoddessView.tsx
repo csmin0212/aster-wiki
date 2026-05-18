@@ -1,13 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   GODDESS_SKILLS, SKILL_BRANCHES, SkillBranch, Skill,
   GoddessState, ExpLogEntry,
   DEFAULT_GODDESS_STATE, expNeeded,
 } from '../data/systems';
-
-const STORAGE_KEY = 'aster-goddess';
+import { useSharedState } from '../lib/useSharedState';
 const GOLD        = "#C8A020";
 const GOLD_LIGHT  = "#FFF8E7";
 const GOLD_BDR    = "#E8D060";
@@ -341,22 +340,16 @@ function LogPanel({ expLog }: { expLog: ExpLogEntry[] }) {
 // ── 메인 컴포넌트 ────────────────────────────────────────────────
 
 export default function GoddessView({ mob }: { mob: boolean }) {
-  const [state, setState]       = useState<GoddessState>(DEFAULT_GODDESS_STATE);
+  const { state, save, loaded }  = useSharedState<GoddessState>('goddess', DEFAULT_GODDESS_STATE);
   const [charInput, setChar]    = useState('');
   const [expInput,  setExp]     = useState('');
   const [decInput,  setDec]     = useState('');
   const [showDec,   setShowDec] = useState(false);
   const [imgErr,    setImgErr]  = useState(false);
 
-  useEffect(() => {
-    const s = localStorage.getItem(STORAGE_KEY);
-    if (s) { try { setState(JSON.parse(s)); } catch {} }
-  }, []);
-
-  const save = (s: GoddessState) => {
-    setState(s);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
-  };
+  if (!loaded) return (
+    <div style={{ padding: "60px 48px", color: "#AAA", fontSize: "14px" }}>불러오는 중…</div>
+  );
 
   // ── 경험치 추가 ──────────────────────────────────────────────
   const addExp = () => {
