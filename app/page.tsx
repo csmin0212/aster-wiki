@@ -3,6 +3,9 @@
 import { useState, useEffect, useRef, ReactNode } from "react";
 import { nations, Nation, Location } from "./data/nations";
 import { npcGroups, NpcGroup, Npc } from "./data/npcs";
+import GoddessView from "./components/GoddessView";
+import SilverRoadView from "./components/SilverRoadView";
+import ElinView from "./components/ElinView";
 
 // ─── 대륙 지도 ───────────────────────────────────────────────
 
@@ -242,7 +245,12 @@ function NationView({ n, mob, activeId, onSelect, onLocClick }: NationViewProps)
 
 // ─── 루트 컴포넌트 ───────────────────────────────────────────
 
-type ActiveView = { type: "nation"; nationId: string } | { type: "npcs" };
+type ActiveView =
+  | { type: "nation"; nationId: string }
+  | { type: "npcs" }
+  | { type: "goddess" }
+  | { type: "silver-road" }
+  | { type: "elin" };
 
 export default function NationsWiki() {
   const [activeView, setActiveView] = useState<ActiveView>({ type: "nation", nationId: "cardea" });
@@ -313,6 +321,21 @@ export default function NationsWiki() {
             <span style={{fontSize:"16px",width:24,textAlign:"center"}}>👥</span><span>인물 사전</span>
           </button>
 
+          {/* 커뮤니티 */}
+          <div style={{fontSize:"10px",fontWeight:500,letterSpacing:"0.15em",color:"#6b6560",padding:"16px 22px 8px"}}>커뮤니티</div>
+          {([
+            { type: "goddess",    icon: "✨", label: "여신 특성",   color: "#C8A020" },
+            { type: "silver-road",icon: "🪙", label: "실버로드",    color: "#2A5F9E" },
+            { type: "elin",       icon: "🌸", label: "엘린",        color: "#B85C6E" },
+          ] as const).map(item => {
+            const isActive = activeView.type === item.type;
+            return (
+              <button key={item.type} onClick={()=>setActiveView({type:item.type})} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"10px 22px",border:"none",cursor:"pointer",textAlign:"left",fontSize:"13px",fontWeight:isActive?500:400,background:isActive?"rgba(255,255,255,0.08)":"transparent",color:isActive?"#E8E2D8":"#A09888",borderLeft:isActive?`3px solid ${item.color}`:"3px solid transparent",transition:"all 0.15s ease",fontFamily:"'Noto Sans KR',sans-serif"}}>
+                <span style={{fontSize:"16px",width:24,textAlign:"center"}}>{item.icon}</span><span>{item.label}</span>
+              </button>
+            );
+          })}
+
           {/* 대륙 공통 정보 */}
           <div style={{fontSize:"10px",fontWeight:500,letterSpacing:"0.15em",color:"#6b6560",padding:"16px 22px 8px"}}>대륙 공통</div>
           <div style={{padding:"6px 22px",fontSize:"12px",color:"#8a8278",lineHeight:1.8}}>
@@ -338,6 +361,12 @@ export default function NationsWiki() {
       <main ref={ref} style={{flex:1,overflowY:"auto"}}>
         {activeView.type === "npcs"
           ? <NpcsView mob={mob}/>
+          : activeView.type === "goddess"
+          ? <GoddessView mob={mob}/>
+          : activeView.type === "silver-road"
+          ? <SilverRoadView mob={mob} />
+          : activeView.type === "elin"
+          ? <ElinView mob={mob} />
           : <NationView n={n} mob={mob} activeId={activeNationId} onSelect={selectNation} onLocClick={setSelLoc}/>
         }
       </main>

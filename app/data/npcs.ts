@@ -80,12 +80,4 @@ export const npcGroups: NpcGroup[] = [
       { id: "medeia", name: "메데이아", title: "선익장", image: "/npcs/valhart/medeia.jpg" },
     ],
   },
-  {
-    id: "valhart-crow-squad",
-    name: "까마귀부대",
-    nationId: "valhart",
-    npcs: [
-      { id: "branwen", name: "브란웬", image: "/npcs/valhart/branwen.jpg" },
-    ],
-  },
 ];
