@@ -17,19 +17,24 @@ export function useSharedState<T extends object>(key: string, defaults: T) {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    const ref  = doc(db, 'app_state', key);
+    // 6초 안에 Firebase 응답 없으면 기본값으로 진행
+    const timeout = setTimeout(() => {
+      console.warn('[useSharedState] Firebase 응답 없음 — 기본값으로 진행');
+      setLoaded(true);
+    }, 6000);
+
+    const ref   = doc(db, 'app_state', key);
     const unsub = onSnapshot(ref, (snap) => {
-      if (snap.exists()) {
-        setState(snap.data() as T);
-      } else {
-        setState(defaults);
-      }
+      clearTimeout(timeout);
+      setState(snap.exists() ? (snap.data() as T) : defaults);
       setLoaded(true);
     }, (err) => {
-      console.error('[useSharedState] Firestore 오류:', err);
+      clearTimeout(timeout);
+      console.error('[useSharedState] Firestore 오류:', err.code, err.message);
       setLoaded(true);
     });
-    return () => unsub();
+
+    return () => { clearTimeout(timeout); unsub(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
