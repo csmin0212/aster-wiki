@@ -15,6 +15,58 @@ const CARD_GAP    = 8;
 const BRANCH_W    = CARD_W * 2 + CARD_GAP;  // 268
 const CONN_H      = 30;
 
+// ─── 캐릭터 스테이터스 데이터 ─────────────────────────────────
+
+const CHAR_SKILLS_LIST = [
+  { minLevel: 2, name: "트레이닝",    type: "패시브",                  desc: "근력·민첩 +3, 최대 HP +3, 행동치 +1" },
+  { minLevel: 3, name: "신벌 강화Ⅰ",  type: "패시브",                  desc: "신벌! 명중 판정에 +1D" },
+  { minLevel: 4, name: "신벌 강화Ⅱ",  type: "패시브",                  desc: "신벌! 대미지에 +2D" },
+  { minLevel: 5, name: "빛의 가호",   type: "효과 참조 / 단일 / 시야",  desc: "시나리오 1회. 대미지 굴림 직후, 해당 대미지를 0으로 변경한다." },
+];
+
+function computeCharStats(level: number, pickedSkills: string[]) {
+  const lvb = Math.max(0, level - 1);
+
+  // 레벨 누적 기본치
+  let hp    = 20 + lvb * 7;
+  let str   = 6  + lvb;
+  const dex = 6;
+  let agi   = 9;
+  const per = 6;
+  let int_  = 18 + lvb;
+  let spi   = 15 + lvb;
+  const luk = 9;
+  let pdef  = 3  + lvb;
+  let mdef  = 5  + lvb;
+  let act   = 6  + lvb;
+  let hitDice = 2, hitFlat = 6  + lvb;
+  let dmgDice = 2, dmgFlat = 15 + lvb * 2;
+
+  // 레벨별 스킬 보너스
+  if (level >= 2) { str += 3; agi += 3; hp += 3; act += 1; }
+  if (level >= 3) { hitDice += 1; }
+  if (level >= 4) { dmgDice += 2; }
+
+  // 여신 특성 보너스
+  const t: Record<string, number> = {};
+  for (const id of pickedSkills) {
+    const sk = GODDESS_SKILLS.find(s => s.id === id);
+    if (!sk?.bonuses) continue;
+    for (const b of sk.bonuses) t[b.stat] = (t[b.stat] ?? 0) + b.value;
+  }
+
+  return {
+    hp, str, dex, agi, per, int_, spi, luk,
+    pdef, mdef, act,
+    hitDice, hitFlat, dmgDice, dmgFlat,
+    traitHP:   t["HP"]      ?? 0,
+    traitMAtk: t["마법공격"] ?? 0,
+    traitPDef: t["물리방어"] ?? 0,
+    traitMDef: t["마법방어"] ?? 0,
+    traitHit:  t["명중"]    ?? 0,
+  };
+}
+
 // ── Btn ────────────────────────────────────────────────────────
 
 function Btn({
@@ -301,6 +353,138 @@ function EffectsPanel({ pickedSkills }: { pickedSkills: string[] }) {
   );
 }
 
+// ── CharacterStats ─────────────────────────────────────────────
+
+function CharacterStats({ level, pickedSkills }: { level: number; pickedSkills: string[] }) {
+  const cs = computeCharStats(level, pickedSkills);
+  const known = CHAR_SKILLS_LIST.filter(sk => level >= sk.minLevel);
+
+  // 특성 배지 (+N 표기)
+  const TB = ({ v, label }: { v: number; label?: string }) =>
+    v > 0 ? (
+      <span style={{ fontSize: "10px", color: GOLD, fontWeight: 700, marginLeft: 4 }}>
+        (+{v}{label ? ` ${label}` : ""})
+      </span>
+    ) : null;
+
+  // 능력치 박스 (작은 카드)
+  const SBox = ({ label, val, trait = 0 }: { label: string; val: number; trait?: number }) => (
+    <div style={{
+      display: "flex", flexDirection: "column", alignItems: "center",
+      minWidth: 50, padding: "5px 7px",
+      background: "rgba(255,255,255,0.75)", borderRadius: 6,
+      border: `1px solid ${GOLD_BDR}50`,
+    }}>
+      <span style={{ fontSize: "9px", color: "#AAA", letterSpacing: "0.05em" }}>{label}</span>
+      <span style={{ fontSize: "14px", fontWeight: 700, color: "#333", lineHeight: 1.3 }}>
+        {val + trait}
+      </span>
+      {trait > 0 && (
+        <span style={{ fontSize: "9px", color: GOLD, fontWeight: 700 }}>+{trait}</span>
+      )}
+    </div>
+  );
+
+  return (
+    <div style={{
+      background: "linear-gradient(135deg, #FFFDF5 0%, #FFF8E7 100%)",
+      border: `1px solid ${GOLD_BDR}`,
+      borderRadius: 10, padding: "16px 20px", marginBottom: 16,
+    }}>
+      <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.18em", color: GOLD, marginBottom: 14 }}>
+        ✦ 캐릭터 능력치 — Lv.{level}
+      </div>
+
+      {/* HP */}
+      <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 14 }}>
+        <span style={{ fontSize: "10px", fontWeight: 600, color: "#AAA" }}>HP</span>
+        <span style={{ fontSize: "24px", fontWeight: 700, color: "#C0392B" }}>
+          {cs.hp + cs.traitHP}
+        </span>
+        <TB v={cs.traitHP} />
+      </div>
+
+      {/* 7대 능력치 */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 12 }}>
+        <SBox label="근력" val={cs.str} />
+        <SBox label="재주" val={cs.dex} />
+        <SBox label="민첩" val={cs.agi} />
+        <SBox label="감지" val={cs.per} />
+        <SBox label="지력" val={cs.int_} />
+        <SBox label="정신" val={cs.spi} />
+        <SBox label="행운" val={cs.luk} />
+      </div>
+
+      {/* 방어·행동치 */}
+      <div style={{
+        display: "flex", flexWrap: "wrap", gap: 5,
+        paddingTop: 10, borderTop: `1px solid ${GOLD_BDR}40`, marginBottom: 14,
+      }}>
+        <SBox label="물리방어" val={cs.pdef} trait={cs.traitPDef} />
+        <SBox label="마법방어" val={cs.mdef} trait={cs.traitMDef} />
+        <SBox label="행동치"   val={cs.act} />
+      </div>
+
+      {/* 신벌! */}
+      <div style={{ paddingTop: 10, borderTop: `1px solid ${GOLD_BDR}40`, marginBottom: 14 }}>
+        <div style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.15em", color: "#AAA", marginBottom: 8 }}>
+          ◆ 사용 스킬
+        </div>
+        <div style={{
+          background: "rgba(255,255,255,0.85)", border: `1px solid ${GOLD_BDR}70`,
+          borderRadius: 8, padding: "10px 14px",
+        }}>
+          <div style={{ fontSize: "14px", fontWeight: 700, color: "#2a2a2a", marginBottom: 8 }}>
+            신벌!
+          </div>
+          <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
+            <div>
+              <div style={{ fontSize: "9px", color: "#888", marginBottom: 2 }}>명중</div>
+              <span style={{ fontSize: "15px", fontWeight: 700, color: "#444" }}>
+                {cs.hitDice}D+{cs.hitFlat + cs.traitHit}
+              </span>
+              <TB v={cs.traitHit} label="명중" />
+            </div>
+            <div>
+              <div style={{ fontSize: "9px", color: "#888", marginBottom: 2 }}>대미지</div>
+              <span style={{ fontSize: "15px", fontWeight: 700, color: "#C0392B" }}>
+                {cs.dmgDice}D+{cs.dmgFlat + cs.traitMAtk}
+              </span>
+              <TB v={cs.traitMAtk} label="마법공격" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 보유 스킬 목록 */}
+      {known.length > 0 && (
+        <div style={{ paddingTop: 10, borderTop: `1px solid ${GOLD_BDR}40` }}>
+          <div style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.15em", color: "#AAA", marginBottom: 8 }}>
+            ◆ 보유 스킬
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {known.map(sk => (
+              <div key={sk.name} style={{
+                background: "rgba(255,255,255,0.85)", border: `1px solid ${GOLD_BDR}60`,
+                borderRadius: 8, padding: "8px 12px",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: "13px", fontWeight: 700, color: "#2a2a2a" }}>{sk.name}</span>
+                  <span style={{
+                    fontSize: "9px", color: "#999",
+                    border: "1px solid #E0DDD8", borderRadius: 4, padding: "1px 6px",
+                  }}>{sk.type}</span>
+                </div>
+                <div style={{ fontSize: "11px", color: "#666", lineHeight: 1.55 }}>{sk.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── LogPanel ───────────────────────────────────────────────────
 
 function LogPanel({ expLog, onDelete }: { expLog: ExpLogEntry[], onDelete: (id: string) => void }) {
@@ -368,9 +552,10 @@ function LogPanel({ expLog, onDelete }: { expLog: ExpLogEntry[], onDelete: (id: 
 
 export default function GoddessView({ mob }: { mob: boolean }) {
   const { state, save, loaded }  = useSharedState<GoddessState>('goddess', DEFAULT_GODDESS_STATE);
-  const [charInput, setChar]    = useState('');
-  const [expInput,  setExp]     = useState('');
-  const [imgErr,    setImgErr]  = useState(false);
+  const [charInput,  setChar]    = useState('');
+  const [expInput,   setExp]     = useState('');
+  const [imgErr,     setImgErr]  = useState(false);
+  const [showStats,  setShowStats] = useState(false);
 
   if (!loaded) return (
     <div style={{ padding: "60px 48px", color: "#AAA", fontSize: "14px" }}>불러오는 중…</div>
@@ -520,6 +705,19 @@ export default function GoddessView({ mob }: { mob: boolean }) {
             <div style={{ background: GOLD, color: "#fff", borderRadius: 6, padding: "3px 12px", fontSize: "14px", fontWeight: 700 }}>
               Lv. {state.level}
             </div>
+            <button
+              onClick={() => setShowStats(v => !v)}
+              style={{
+                background: showStats ? GOLD : "transparent",
+                color: showStats ? "#fff" : GOLD,
+                border: `1.5px solid ${GOLD_BDR}`,
+                borderRadius: 6, padding: "3px 11px",
+                fontSize: "12px", fontWeight: 600,
+                cursor: "pointer", fontFamily: "'Noto Sans KR',sans-serif",
+              }}
+            >
+              {showStats ? "✕ 능력치" : "📊 능력치"}
+            </button>
             {state.availablePoints > 0 && (
               <div style={{ background: "#E74C3C", color: "#fff", borderRadius: 6, padding: "3px 10px", fontSize: "12px", fontWeight: 600 }}>
                 ✦ 포인트 {state.availablePoints}
@@ -556,6 +754,11 @@ export default function GoddessView({ mob }: { mob: boolean }) {
           </div>
         </div>
       </div>
+
+      {/* ── 캐릭터 능력치 패널 ───────────────────────────────── */}
+      {showStats && (
+        <CharacterStats level={state.level} pickedSkills={state.pickedSkills} />
+      )}
 
       {/* ── 경험치 입력 ───────────────────────────────────────── */}
       <div style={{ background: "#fff", border: "1px solid #E8E3DA", borderRadius: 10, padding: "18px 20px", marginBottom: 16 }}>
@@ -605,7 +808,7 @@ export default function GoddessView({ mob }: { mob: boolean }) {
             <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px dashed #E8E8E8" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
                 <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.2em", color: "#9B7AC4" }}>◆ 고급 특성</div>
-                <div style={{ fontSize: "10px", color: "#AAA" }}>— 특성 포인트 5점 소모</div>
+                <div style={{ fontSize: "10px", color: "#AAA" }}>— 특성 포인트 3점 소모</div>
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {t3adv.map(s => {

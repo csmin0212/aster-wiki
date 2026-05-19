@@ -14,6 +14,7 @@ interface WarehouseItem {
   name:     string;
   weight:   number;   // 개당 중량
   qty:      number;
+  price?:   number;   // 개당 가격 (optional)
   addedBy:  string;
   addedAt:  string;
 }
@@ -37,7 +38,7 @@ interface WHState {
 
 const DEFAULT_STATE: WHState = { items: [], log: [] };
 
-type SortKey = "newest" | "weight";
+type SortKey = "newest" | "weight" | "price";
 
 // ─── 유틸 ─────────────────────────────────────────────────────
 
@@ -63,6 +64,7 @@ export default function WarehouseView({ mob }: { mob: boolean }) {
   const [nameIn,   setName]    = useState('');
   const [weightIn, setWeight]  = useState('');
   const [qtyIn,    setQty]     = useState('1');
+  const [priceIn,  setPrice]   = useState('');
   const [personIn, setPerson]  = useState('');
   const [errMsg,   setErr]     = useState('');
 
@@ -107,16 +109,19 @@ export default function WarehouseView({ mob }: { mob: boolean }) {
       return;
     }
 
+    const price = priceIn.trim() !== '' ? parseFloat(priceIn) : undefined;
+
     // 같은 이름 + 같은 중량 아이템이면 수량 병합
     const existing = state.items.find(it => it.name === nameIn.trim() && it.weight === w);
     let newItems: WarehouseItem[];
     if (existing) {
       newItems = state.items.map(it =>
-        it.id === existing.id ? { ...it, qty: it.qty + q } : it
+        it.id === existing.id ? { ...it, qty: it.qty + q, price: price ?? it.price } : it
       );
     } else {
       newItems = [...state.items, {
         id: uid(), name: nameIn.trim(), weight: w, qty: q,
+        price,
         addedBy: personIn.trim(), addedAt: ts(),
       }];
     }
@@ -129,7 +134,7 @@ export default function WarehouseView({ mob }: { mob: boolean }) {
     };
 
     save({ items: newItems, log: [logEntry, ...state.log].slice(0, 100) });
-    setName(''); setWeight(''); setQty('1');
+    setName(''); setWeight(''); setQty('1'); setPrice('');
   };
 
   // ── 출고 ──────────────────────────────────────────────────────
@@ -183,7 +188,7 @@ export default function WarehouseView({ mob }: { mob: boolean }) {
   // ── 정렬된 아이템 목록 ────────────────────────────────────────
   const sortedItems = [...state.items].sort((a, b) => {
     if (sort === 'weight') return (b.weight * b.qty) - (a.weight * a.qty);
-    // newest: addedAt 비교 (문자열이지만 같은 포맷)
+    if (sort === 'price')  return ((b.price ?? 0) * b.qty) - ((a.price ?? 0) * a.qty);
     return b.addedAt.localeCompare(a.addedAt);
   });
 
@@ -259,6 +264,9 @@ export default function WarehouseView({ mob }: { mob: boolean }) {
           <input type="number" placeholder="갯수" value={qtyIn} onChange={e => setQty(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && addItem()}
             style={inputStyle("0 0 60px")} />
+          <input type="number" placeholder="가격 (G)" value={priceIn} onChange={e => setPrice(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && addItem()}
+            style={inputStyle("0 0 90px")} />
           <input placeholder="넣는 사람" value={personIn} onChange={e => setPerson(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && addItem()}
             style={inputStyle("1 1 100px")} />
@@ -321,15 +329,19 @@ export default function WarehouseView({ mob }: { mob: boolean }) {
             창고 목록 <span style={{ fontWeight: 400, fontSize: "11px", opacity: 0.6 }}>(우클릭 → 삭제)</span>
           </div>
           <div style={{ display: "flex", gap: 6 }}>
-            {(["newest", "weight"] as SortKey[]).map(k => (
-              <button key={k} onClick={() => setSort(k)} style={{
+            {([
+              { key: "newest", label: "최신 순" },
+              { key: "weight", label: "중량 순" },
+              { key: "price",  label: "가격 순" },
+            ] as { key: SortKey; label: string }[]).map(({ key, label }) => (
+              <button key={key} onClick={() => setSort(key)} style={{
                 padding: "4px 12px", borderRadius: 20, fontSize: "11px", fontWeight: 600,
-                border: `1px solid ${sort === k ? ACCENT : "#E0DDD8"}`,
-                background: sort === k ? ACCENT : "#F5F4F1",
-                color: sort === k ? "#fff" : "#888",
+                border: `1px solid ${sort === key ? ACCENT : "#E0DDD8"}`,
+                background: sort === key ? ACCENT : "#F5F4F1",
+                color: sort === key ? "#fff" : "#888",
                 cursor: "pointer",
               }}>
-                {k === 'newest' ? '최신 순' : '중량 순'}
+                {label}
               </button>
             ))}
           </div>
@@ -344,8 +356,8 @@ export default function WarehouseView({ mob }: { mob: boolean }) {
             {/* 테이블 헤더 */}
             <div style={{
               display: "grid",
-              gridTemplateColumns: "1fr 60px 50px 70px 70px",
-              gap: 8, padding: "6px 10px",
+              gridTemplateColumns: "1fr 54px 44px 60px 80px 68px",
+              gap: 6, padding: "6px 10px",
               fontSize: "11px", fontWeight: 600, color: "#AAA",
               borderBottom: "1px solid #EAEAEA", marginBottom: 4,
             }}>
@@ -353,6 +365,7 @@ export default function WarehouseView({ mob }: { mob: boolean }) {
               <span style={{ textAlign: "center" }}>중량</span>
               <span style={{ textAlign: "center" }}>갯수</span>
               <span style={{ textAlign: "center" }}>총 중량</span>
+              <span style={{ textAlign: "center" }}>가격 (G)</span>
               <span style={{ textAlign: "right" }}>넣은 사람</span>
             </div>
             {sortedItems.map(it => (
@@ -360,8 +373,8 @@ export default function WarehouseView({ mob }: { mob: boolean }) {
                 onContextMenu={ev => { ev.preventDefault(); ev.stopPropagation(); setCtx({ id: it.id, x: ev.clientX, y: ev.clientY, isLog: false }); }}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1fr 60px 50px 70px 70px",
-                  gap: 8, padding: "8px 10px",
+                  gridTemplateColumns: "1fr 54px 44px 60px 80px 68px",
+                  gap: 6, padding: "8px 10px",
                   fontSize: "13px", borderRadius: 6,
                   background: "#FAFAF8", marginBottom: 4,
                   borderLeft: `3px solid ${ACCENT}40`,
@@ -373,6 +386,9 @@ export default function WarehouseView({ mob }: { mob: boolean }) {
                 <span style={{ textAlign: "center", color: "#666" }}>{it.qty}</span>
                 <span style={{ textAlign: "center", fontWeight: 700, color: ACCENT }}>
                   {it.weight * it.qty}
+                </span>
+                <span style={{ textAlign: "center", color: it.price != null ? "#1A7A3C" : "#CCC", fontWeight: it.price != null ? 700 : 400, fontSize: it.price != null ? "13px" : "11px" }}>
+                  {it.price != null ? `${(it.price * it.qty).toLocaleString()}` : "—"}
                 </span>
                 <span style={{ textAlign: "right", fontSize: "11px", color: "#999" }}>{it.addedBy}</span>
               </div>

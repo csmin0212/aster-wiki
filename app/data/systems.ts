@@ -39,12 +39,12 @@ export const GODDESS_SKILLS: Skill[] = [
   { id: "t2_bad_b",  tier: 2, name: "배드 스테이터스 +1",  effect: "배드 스테이터스 강도 1 증가",  requires: ["t1_bad"],             bonuses: [{ stat: "배드", value: 1 }] },
   { id: "t2_advatk", tier: 2, name: "공격력 +4",           effect: "특수 공격력 4 증가",            requires: ["t1_spatk"],            bonuses: [{ stat: "특수공격", value: 4 }] },
 
-  // ── 고급 특성 (포인트 5 소모) ────────────────────────────────
-  { id: "adv_judge", tier: 3, name: "모든 판정 +1D",   effect: "모든 판정 굴림에 +1D 추가",   requires: [], cost: 5, bonuses: [{ stat: "판정D",    value: 1  }] },
-  { id: "adv_pdef",  tier: 3, name: "물리 방어력 +20", effect: "물리 방어력 20 증가",          requires: [], cost: 5, bonuses: [{ stat: "물리방어", value: 20 }] },
-  { id: "adv_mdef",  tier: 3, name: "마법 방어력 +20", effect: "마법 방어력 20 증가",          requires: [], cost: 5, bonuses: [{ stat: "마법방어", value: 20 }] },
-  { id: "adv_sp1",   tier: 3, name: "스킬 포인트 +1",  effect: "스킬 포인트 1 증가",           requires: [], cost: 5, bonuses: [{ stat: "스킬포인트", value: 1 }] },
-  { id: "adv_sp2",   tier: 3, name: "스킬 포인트 +1",  effect: "스킬 포인트 1 증가",           requires: [], cost: 5, bonuses: [{ stat: "스킬포인트", value: 1 }] },
+  // ── 고급 특성 (포인트 3 소모) ────────────────────────────────
+  { id: "adv_judge", tier: 3, name: "모든 판정 +1D",   effect: "모든 판정 굴림에 +1D 추가",   requires: [], cost: 3, bonuses: [{ stat: "판정D",    value: 1  }] },
+  { id: "adv_pdef",  tier: 3, name: "물리 방어력 +20", effect: "물리 방어력 20 증가",          requires: [], cost: 3, bonuses: [{ stat: "물리방어", value: 20 }] },
+  { id: "adv_mdef",  tier: 3, name: "마법 방어력 +20", effect: "마법 방어력 20 증가",          requires: [], cost: 3, bonuses: [{ stat: "마법방어", value: 20 }] },
+  { id: "adv_sp1",   tier: 3, name: "스킬 포인트 +1",  effect: "스킬 포인트 1 증가",           requires: [], cost: 3, bonuses: [{ stat: "스킬포인트", value: 1 }] },
+  { id: "adv_sp2",   tier: 3, name: "스킬 포인트 +1",  effect: "스킬 포인트 1 증가",           requires: [], cost: 3, bonuses: [{ stat: "스킬포인트", value: 1 }] },
 
   // ── 에픽 특성 (잠금) ─────────────────────────────────────────
   { id: "t4_1", tier: 4, name: "???", effect: "미공개", requires: [], locked: true },
