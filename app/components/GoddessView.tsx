@@ -40,7 +40,7 @@ function computeCharStats(level: number, pickedSkills: string[]) {
   let mdef  = 5  + lvb;
   let act   = 6  + lvb;
   let hitDice = 2, hitFlat = 6  + lvb;
-  let dmgDice = 2, dmgFlat = 15 + lvb * 2;
+  let dmgDice = 2, dmgFlat = 15 + lvb * 3;
 
   // 레벨별 스킬 보너스
   if (level >= 2) { str += 3; agi += 3; hp += 3; act += 1; }
