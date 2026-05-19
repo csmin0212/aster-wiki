@@ -4,17 +4,19 @@ import { useState, useEffect } from 'react';
 import { useSharedState } from '../lib/useSharedState';
 
 const MAX_WEIGHT = 50;
-const ACCENT     = "#7B5EA7";   // 보라 계열 (창고 테마)
+const ACCENT     = "#7B5EA7";
 const ACCENT_BDR = "#B89FD4";
+const GOLD_COLOR = "#C8952A";
+const GOLD_BG    = "#2A2010";
 
 // ─── 타입 ─────────────────────────────────────────────────────
 
 interface WarehouseItem {
   id:       string;
   name:     string;
-  weight:   number;   // 개당 중량
+  weight:   number;
   qty:      number;
-  price?:   number;   // 개당 가격 (optional)
+  price?:   number;
   addedBy:  string;
   addedAt:  string;
 }
@@ -31,14 +33,27 @@ interface WarehouseLog {
   newTotal:  number;
 }
 
+interface GoldLog {
+  id:        string;
+  action:    "deposit" | "withdraw";
+  amount:    number;
+  person:    string;
+  timestamp: string;
+  prevGold:  number;
+  newGold:   number;
+}
+
 interface WHState {
   items:    WarehouseItem[];
   log:      WarehouseLog[];
+  gold:     number;
+  goldLog:  GoldLog[];
 }
 
-const DEFAULT_STATE: WHState = { items: [], log: [] };
+const DEFAULT_STATE: WHState = { items: [], log: [], gold: 0, goldLog: [] };
 
 type SortKey = "newest" | "weight" | "price";
+type GoldMode = null | "deposit" | "withdraw";
 
 // ─── 유틸 ─────────────────────────────────────────────────────
 
@@ -60,7 +75,7 @@ function uid(): string { return Date.now().toString() + Math.random().toString(3
 export default function WarehouseView({ mob }: { mob: boolean }) {
   const { state, save, loaded } = useSharedState<WHState>('warehouse', DEFAULT_STATE);
 
-  // 입력 폼
+  // 아이템 입고 폼
   const [nameIn,   setName]    = useState('');
   const [weightIn, setWeight]  = useState('');
   const [qtyIn,    setQty]     = useState('1');
@@ -68,18 +83,25 @@ export default function WarehouseView({ mob }: { mob: boolean }) {
   const [personIn, setPerson]  = useState('');
   const [errMsg,   setErr]     = useState('');
 
-  // 출고 폼
+  // 아이템 출고 폼
   const [outId,    setOutId]   = useState('');
   const [outQty,   setOutQty]  = useState('1');
   const [outPerson,setOutPerson] = useState('');
 
+  // 골드 폼
+  const [goldMode,   setGoldMode]   = useState<GoldMode>(null);
+  const [goldAmt,    setGoldAmt]    = useState('');
+  const [goldPerson, setGoldPerson] = useState('');
+  const [goldErr,    setGoldErr]    = useState('');
+
   // UI
   const [sort,   setSort]   = useState<SortKey>('newest');
-  const [ctx,    setCtx]    = useState<{ id: string; x: number; y: number; isLog: boolean } | null>(null);
+  const [ctx,    setCtx]    = useState<{ id: string; x: number; y: number } | null>(null);
   const [logCtx, setLogCtx] = useState<{ id: string; x: number; y: number } | null>(null);
+  const [goldCtx,setGoldCtx]= useState<{ id: string; x: number; y: number } | null>(null);
 
   useEffect(() => {
-    const close = () => { setCtx(null); setLogCtx(null); };
+    const close = () => { setCtx(null); setLogCtx(null); setGoldCtx(null); };
     window.addEventListener('click', close);
     return () => window.removeEventListener('click', close);
   }, []);
@@ -88,12 +110,42 @@ export default function WarehouseView({ mob }: { mob: boolean }) {
     <div style={{ padding: "60px 48px", color: "#AAA", fontSize: "14px" }}>불러오는 중…</div>
   );
 
+  const curGold   = state.gold ?? 0;
   const curWeight = totalWeight(state.items);
   const weightPct = Math.min(100, (curWeight / MAX_WEIGHT) * 100);
   const isHeavy   = curWeight > 40;
   const isFull    = curWeight >= MAX_WEIGHT;
 
-  // ── 입고 ──────────────────────────────────────────────────────
+  // ── 골드 입금 / 출금 ──────────────────────────────────────────
+  const handleGold = () => {
+    setGoldErr('');
+    const amt = parseInt(goldAmt);
+    if (isNaN(amt) || amt <= 0) { setGoldErr('금액을 입력하세요.'); return; }
+    if (!goldPerson.trim())     { setGoldErr('이름을 입력하세요.'); return; }
+    if (goldMode === 'withdraw' && amt > curGold) {
+      setGoldErr(`잔액(${curGold.toLocaleString()}G)보다 많이 출금할 수 없습니다.`);
+      return;
+    }
+
+    const newGold = goldMode === 'deposit' ? curGold + amt : curGold - amt;
+    const logEntry: GoldLog = {
+      id: uid(),
+      action: goldMode!,
+      amount: amt,
+      person: goldPerson.trim(),
+      timestamp: ts(),
+      prevGold: curGold,
+      newGold,
+    };
+    save({
+      ...state,
+      gold: newGold,
+      goldLog: [logEntry, ...(state.goldLog ?? [])].slice(0, 100),
+    });
+    setGoldAmt(''); setGoldPerson(''); setGoldMode(null);
+  };
+
+  // ── 아이템 입고 ───────────────────────────────────────────────
   const addItem = () => {
     setErr('');
     const w = parseFloat(weightIn);
@@ -110,8 +162,6 @@ export default function WarehouseView({ mob }: { mob: boolean }) {
     }
 
     const price = priceIn.trim() !== '' ? parseFloat(priceIn) : undefined;
-
-    // 같은 이름 + 같은 중량 아이템이면 수량 병합
     const existing = state.items.find(it => it.name === nameIn.trim() && it.weight === w);
     let newItems: WarehouseItem[];
     if (existing) {
@@ -121,8 +171,7 @@ export default function WarehouseView({ mob }: { mob: boolean }) {
     } else {
       newItems = [...state.items, {
         id: uid(), name: nameIn.trim(), weight: w, qty: q,
-        price,
-        addedBy: personIn.trim(), addedAt: ts(),
+        price, addedBy: personIn.trim(), addedAt: ts(),
       }];
     }
 
@@ -133,11 +182,11 @@ export default function WarehouseView({ mob }: { mob: boolean }) {
       prevTotal: curWeight, newTotal: curWeight + added,
     };
 
-    save({ items: newItems, log: [logEntry, ...state.log].slice(0, 100) });
+    save({ ...state, items: newItems, log: [logEntry, ...state.log].slice(0, 100) });
     setName(''); setWeight(''); setQty('1'); setPrice('');
   };
 
-  // ── 출고 ──────────────────────────────────────────────────────
+  // ── 아이템 출고 ───────────────────────────────────────────────
   const removeItem = () => {
     setErr('');
     const item = state.items.find(it => it.id === outId);
@@ -159,11 +208,11 @@ export default function WarehouseView({ mob }: { mob: boolean }) {
       prevTotal: curWeight, newTotal: curWeight - removed,
     };
 
-    save({ items: newItems, log: [logEntry, ...state.log].slice(0, 100) });
+    save({ ...state, items: newItems, log: [logEntry, ...state.log].slice(0, 100) });
     setOutId(''); setOutQty('1'); setOutPerson('');
   };
 
-  // ── 아이템 행 우클릭 삭제 (창고에서 직접 제거) ────────────────
+  // ── 아이템 우클릭 삭제 ─────────────────────────────────────────
   const deleteItem = (id: string) => {
     const item = state.items.find(it => it.id === id);
     if (!item) return;
@@ -175,17 +224,15 @@ export default function WarehouseView({ mob }: { mob: boolean }) {
       prevTotal: curWeight, newTotal: curWeight - removed,
     };
     save({
+      ...state,
       items: state.items.filter(it => it.id !== id),
       log: [logEntry, ...state.log].slice(0, 100),
     });
   };
 
-  // ── 로그 삭제 ────────────────────────────────────────────────
-  const deleteLog = (id: string) => {
-    save({ ...state, log: state.log.filter(l => l.id !== id) });
-  };
+  const deleteLog     = (id: string) => save({ ...state, log: state.log.filter(l => l.id !== id) });
+  const deleteGoldLog = (id: string) => save({ ...state, goldLog: (state.goldLog ?? []).filter(l => l.id !== id) });
 
-  // ── 정렬된 아이템 목록 ────────────────────────────────────────
   const sortedItems = [...state.items].sort((a, b) => {
     if (sort === 'weight') return (b.weight * b.qty) - (a.weight * a.qty);
     if (sort === 'price')  return ((b.price ?? 0) * b.qty) - ((a.price ?? 0) * a.qty);
@@ -205,18 +252,93 @@ export default function WarehouseView({ mob }: { mob: boolean }) {
         padding: mob ? "22px 18px" : "28px 32px",
         marginBottom: 16,
       }}>
-        <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.25em", color: ACCENT_BDR, marginBottom: 6 }}>
+        <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.25em", color: ACCENT_BDR, marginBottom: 10 }}>
           SHARED WAREHOUSE
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+
+        {/* 제목 + 골드 패널 */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 20, flexWrap: "wrap" }}>
           <h1 style={{ fontFamily: "'Noto Serif KR',serif", fontSize: mob ? "20px" : "24px", fontWeight: 700, color: "#EDE8FF", margin: 0 }}>
             공용 창고
           </h1>
-          <div style={{
-            background: ACCENT, color: "#fff", borderRadius: 6,
-            padding: "3px 12px", fontSize: "14px", fontWeight: 700,
-          }}>
-            {state.items.length}종
+
+          {/* 골드 패널 */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+            {/* 잔액 표시 */}
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8,
+              background: GOLD_BG, border: `1px solid ${GOLD_COLOR}50`,
+              borderRadius: 10, padding: "10px 16px",
+            }}>
+              <span style={{ fontSize: "18px" }}>💰</span>
+              <div>
+                <div style={{ fontSize: "10px", color: "#8A7040", fontWeight: 600, letterSpacing: "0.1em" }}>공용 골드</div>
+                <div style={{ fontSize: "20px", fontWeight: 800, color: GOLD_COLOR, letterSpacing: "0.02em" }}>
+                  {curGold.toLocaleString()} G
+                </div>
+              </div>
+            </div>
+
+            {/* 입금 / 출금 버튼 */}
+            {goldMode === null && (
+              <div style={{ display: "flex", gap: 6 }}>
+                <button onClick={() => { setGoldMode('deposit'); setGoldErr(''); }} style={{
+                  padding: "7px 14px", borderRadius: 7,
+                  background: "rgba(200,149,42,0.18)", border: `1px solid ${GOLD_COLOR}60`,
+                  color: GOLD_COLOR, fontWeight: 700, fontSize: "13px",
+                  cursor: "pointer", fontFamily: "'Noto Sans KR',sans-serif",
+                }}>+ 입금</button>
+                <button onClick={() => { setGoldMode('withdraw'); setGoldErr(''); }} style={{
+                  padding: "7px 14px", borderRadius: 7,
+                  background: "rgba(100,70,180,0.18)", border: `1px solid ${ACCENT_BDR}40`,
+                  color: ACCENT_BDR, fontWeight: 700, fontSize: "13px",
+                  cursor: "pointer", fontFamily: "'Noto Sans KR',sans-serif",
+                }}>- 출금</button>
+              </div>
+            )}
+
+            {/* 골드 입출금 인라인 폼 */}
+            {goldMode !== null && (
+              <div style={{
+                background: goldMode === 'deposit' ? "rgba(200,149,42,0.12)" : "rgba(100,70,180,0.12)",
+                border: `1px solid ${goldMode === 'deposit' ? GOLD_COLOR : ACCENT_BDR}40`,
+                borderRadius: 10, padding: "12px 14px",
+                display: "flex", flexDirection: "column", gap: 8, minWidth: 210,
+              }}>
+                <div style={{ fontSize: "12px", fontWeight: 700, color: goldMode === 'deposit' ? GOLD_COLOR : ACCENT_BDR }}>
+                  {goldMode === 'deposit' ? '💰 입금' : '💸 출금'}
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  <input
+                    type="number" placeholder="금액 (G)"
+                    value={goldAmt} onChange={e => setGoldAmt(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleGold()}
+                    style={{ flex: "1 1 90px", padding: "7px 10px", border: "1px solid #555", borderRadius: 6, fontSize: "13px", fontFamily: "'Noto Sans KR',sans-serif", background: "#1C1528", color: "#EDE8FF", outline: "none" }}
+                  />
+                  <input
+                    placeholder="이름"
+                    value={goldPerson} onChange={e => setGoldPerson(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleGold()}
+                    style={{ flex: "1 1 70px", padding: "7px 10px", border: "1px solid #555", borderRadius: 6, fontSize: "13px", fontFamily: "'Noto Sans KR',sans-serif", background: "#1C1528", color: "#EDE8FF", outline: "none" }}
+                  />
+                </div>
+                {goldErr && <div style={{ fontSize: "11px", color: "#E74C3C" }}>⚠ {goldErr}</div>}
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button onClick={handleGold} style={{
+                    flex: 1, padding: "7px 0",
+                    background: goldMode === 'deposit' ? GOLD_COLOR : ACCENT,
+                    color: "#fff", border: "none", borderRadius: 6,
+                    fontSize: "13px", fontWeight: 700, cursor: "pointer",
+                    fontFamily: "'Noto Sans KR',sans-serif",
+                  }}>확인</button>
+                  <button onClick={() => { setGoldMode(null); setGoldAmt(''); setGoldPerson(''); setGoldErr(''); }} style={{
+                    padding: "7px 12px", background: "transparent",
+                    color: "#888", border: "1px solid #555", borderRadius: 6,
+                    fontSize: "12px", cursor: "pointer", fontFamily: "'Noto Sans KR',sans-serif",
+                  }}>취소</button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -226,11 +348,7 @@ export default function WarehouseView({ mob }: { mob: boolean }) {
             <span style={{ fontWeight: 600, color: isHeavy ? "#E8A030" : ACCENT_BDR }}>
               {isFull ? "🔴 창고 가득 참" : isHeavy ? "🟠 적재량 주의" : "적재 중량"}
             </span>
-            <span style={{
-              fontWeight: 700,
-              color: isHeavy ? "#E8A030" : "#C4B8E8",
-              fontSize: "14px",
-            }}>
+            <span style={{ fontWeight: 700, color: isHeavy ? "#E8A030" : "#C4B8E8", fontSize: "14px" }}>
               {curWeight} / {MAX_WEIGHT}
             </span>
           </div>
@@ -249,7 +367,7 @@ export default function WarehouseView({ mob }: { mob: boolean }) {
         </div>
       </div>
 
-      {/* ── 입고 폼 ───────────────────────────────────────────── */}
+      {/* ── 아이템 입고 폼 ─────────────────────────────────────── */}
       <div style={{ background: "#fff", border: "1px solid #E8E3DA", borderRadius: 10, padding: "18px 20px", marginBottom: 12 }}>
         <div style={{ fontSize: "12px", fontWeight: 600, color: "#888", letterSpacing: "0.08em", marginBottom: 12 }}>
           📦 아이템 입고
@@ -291,7 +409,7 @@ export default function WarehouseView({ mob }: { mob: boolean }) {
         )}
       </div>
 
-      {/* ── 출고 폼 ───────────────────────────────────────────── */}
+      {/* ── 아이템 출고 폼 ─────────────────────────────────────── */}
       {state.items.length > 0 && (
         <div style={{ background: "#fff", border: "1px solid #E8E3DA", borderRadius: 10, padding: "18px 20px", marginBottom: 16 }}>
           <div style={{ fontSize: "12px", fontWeight: 600, color: "#888", letterSpacing: "0.08em", marginBottom: 12 }}>
@@ -323,7 +441,6 @@ export default function WarehouseView({ mob }: { mob: boolean }) {
 
       {/* ── 창고 목록 ─────────────────────────────────────────── */}
       <div style={{ background: "#fff", border: "1px solid #E8E3DA", borderRadius: 10, padding: "18px 20px", marginBottom: 16 }}>
-        {/* 헤더 + 정렬 */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
           <div style={{ fontSize: "12px", fontWeight: 600, color: "#888", letterSpacing: "0.08em" }}>
             창고 목록 <span style={{ fontWeight: 400, fontSize: "11px", opacity: 0.6 }}>(우클릭 → 삭제)</span>
@@ -353,7 +470,6 @@ export default function WarehouseView({ mob }: { mob: boolean }) {
           </div>
         ) : (
           <>
-            {/* 테이블 헤더 */}
             <div style={{
               display: "grid",
               gridTemplateColumns: "1fr 54px 44px 60px 80px 68px",
@@ -370,7 +486,7 @@ export default function WarehouseView({ mob }: { mob: boolean }) {
             </div>
             {sortedItems.map(it => (
               <div key={it.id}
-                onContextMenu={ev => { ev.preventDefault(); ev.stopPropagation(); setCtx({ id: it.id, x: ev.clientX, y: ev.clientY, isLog: false }); }}
+                onContextMenu={ev => { ev.preventDefault(); ev.stopPropagation(); setCtx({ id: it.id, x: ev.clientX, y: ev.clientY }); }}
                 style={{
                   display: "grid",
                   gridTemplateColumns: "1fr 54px 44px 60px 80px 68px",
@@ -397,11 +513,11 @@ export default function WarehouseView({ mob }: { mob: boolean }) {
         )}
       </div>
 
-      {/* ── 창고 로그 ─────────────────────────────────────────── */}
+      {/* ── 아이템 기록 ──────────────────────────────────────────── */}
       {state.log.length > 0 && (
-        <div style={{ background: "#fff", border: "1px solid #E8E3DA", borderRadius: 10, padding: "18px 20px" }}>
+        <div style={{ background: "#fff", border: "1px solid #E8E3DA", borderRadius: 10, padding: "18px 20px", marginBottom: 16 }}>
           <div style={{ fontSize: "12px", fontWeight: 600, color: "#888", letterSpacing: "0.08em", marginBottom: 12 }}>
-            기록 <span style={{ fontWeight: 400, fontSize: "11px", opacity: 0.6 }}>(우클릭 → 삭제)</span>
+            아이템 기록 <span style={{ fontWeight: 400, fontSize: "11px", opacity: 0.6 }}>(우클릭 → 삭제)</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: 300, overflowY: "auto" }}>
             {state.log.map(l => (
@@ -415,11 +531,7 @@ export default function WarehouseView({ mob }: { mob: boolean }) {
                   lineHeight: 1.6, cursor: "context-menu", userSelect: "none",
                 }}>
                 <span style={{ color: "#BBB", marginRight: 8, fontSize: "11px" }}>{l.timestamp}</span>
-                <span style={{
-                  fontWeight: 700,
-                  color: l.action === 'in' ? ACCENT : "#C0651A",
-                  marginRight: 4,
-                }}>
+                <span style={{ fontWeight: 700, color: l.action === 'in' ? ACCENT : "#C0651A", marginRight: 4 }}>
                   {l.action === 'in' ? '📦 입고' : '📤 출고'}
                 </span>
                 <span style={{ fontWeight: 600, color: "#333" }}>{l.person}</span>
@@ -427,6 +539,39 @@ export default function WarehouseView({ mob }: { mob: boolean }) {
                 <span style={{ fontWeight: 600, color: "#333" }}>{l.itemName}</span>
                 <span style={{ color: "#777" }}> {l.qty}개 (중량 {l.weight * l.qty})</span>
                 <span style={{ color: "#AAA", fontSize: "11px" }}> · {l.prevTotal}→{l.newTotal}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── 골드 기록 ─────────────────────────────────────────── */}
+      {(state.goldLog ?? []).length > 0 && (
+        <div style={{ background: "#fff", border: "1px solid #E8E3DA", borderRadius: 10, padding: "18px 20px" }}>
+          <div style={{ fontSize: "12px", fontWeight: 600, color: "#888", letterSpacing: "0.08em", marginBottom: 12 }}>
+            골드 기록 <span style={{ fontWeight: 400, fontSize: "11px", opacity: 0.6 }}>(우클릭 → 삭제)</span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: 250, overflowY: "auto" }}>
+            {(state.goldLog ?? []).map(l => (
+              <div key={l.id}
+                onContextMenu={ev => { ev.preventDefault(); ev.stopPropagation(); setGoldCtx({ id: l.id, x: ev.clientX, y: ev.clientY }); }}
+                style={{
+                  fontSize: "12px", padding: "7px 12px",
+                  background: l.action === 'deposit' ? "#FFF9EC" : "#F5F0FF",
+                  borderRadius: 6,
+                  borderLeft: `3px solid ${l.action === 'deposit' ? GOLD_COLOR + "80" : ACCENT + "80"}`,
+                  lineHeight: 1.6, cursor: "context-menu", userSelect: "none",
+                }}>
+                <span style={{ color: "#BBB", marginRight: 8, fontSize: "11px" }}>{l.timestamp}</span>
+                <span style={{ fontWeight: 700, color: l.action === 'deposit' ? GOLD_COLOR : ACCENT, marginRight: 4 }}>
+                  {l.action === 'deposit' ? '💰 입금' : '💸 출금'}
+                </span>
+                <span style={{ fontWeight: 600, color: "#333" }}>{l.person}</span>
+                <span style={{ color: "#777" }}> · </span>
+                <span style={{ fontWeight: 700, color: l.action === 'deposit' ? "#1A7A3C" : "#C0651A" }}>
+                  {l.action === 'deposit' ? '+' : '-'}{l.amount.toLocaleString()} G
+                </span>
+                <span style={{ color: "#AAA", fontSize: "11px" }}> ({l.prevGold.toLocaleString()}→{l.newGold.toLocaleString()})</span>
               </div>
             ))}
           </div>
@@ -450,7 +595,7 @@ export default function WarehouseView({ mob }: { mob: boolean }) {
         </div>
       )}
 
-      {/* ── 로그 우클릭 메뉴 ────────────────────────────────────── */}
+      {/* ── 아이템 로그 우클릭 메뉴 ────────────────────────────── */}
       {logCtx && (
         <div onClick={e => e.stopPropagation()} style={{
           position: "fixed", left: logCtx.x, top: logCtx.y,
@@ -459,6 +604,23 @@ export default function WarehouseView({ mob }: { mob: boolean }) {
           zIndex: 9999, overflow: "hidden", minWidth: 110,
         }}>
           <button onClick={() => { deleteLog(logCtx.id); setLogCtx(null); }} style={{
+            display: "block", width: "100%", padding: "9px 14px",
+            textAlign: "left", background: "transparent", border: "none",
+            fontSize: "12px", color: "#E74C3C", cursor: "pointer",
+            fontFamily: "'Noto Sans KR',sans-serif",
+          }}>🗑 삭제</button>
+        </div>
+      )}
+
+      {/* ── 골드 로그 우클릭 메뉴 ──────────────────────────────── */}
+      {goldCtx && (
+        <div onClick={e => e.stopPropagation()} style={{
+          position: "fixed", left: goldCtx.x, top: goldCtx.y,
+          background: "#fff", border: "1px solid #E0DDD8",
+          borderRadius: 7, boxShadow: "0 4px 16px rgba(0,0,0,0.13)",
+          zIndex: 9999, overflow: "hidden", minWidth: 110,
+        }}>
+          <button onClick={() => { deleteGoldLog(goldCtx.id); setGoldCtx(null); }} style={{
             display: "block", width: "100%", padding: "9px 14px",
             textAlign: "left", background: "transparent", border: "none",
             fontSize: "12px", color: "#E74C3C", cursor: "pointer",
