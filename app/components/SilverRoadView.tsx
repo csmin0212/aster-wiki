@@ -97,14 +97,14 @@ export default function SilverRoadView({ mob }: { mob: boolean }) {
     const bonus    = state.pickedPerks.filter(p => p.perkId === "sell").length * 10;
     const finalAmt = bonus > 0 ? Math.round(baseAmt * (1 + bonus / 100)) : baseAmt;
     const entry: SalesLogEntry = {
-      id:         Date.now().toString(),
-      item:       itemInput.trim(),
-      amount:     finalAmt,
-      baseAmount: bonus > 0 ? baseAmt : undefined,
-      bonusPct:   bonus > 0 ? bonus   : undefined,
-      timestamp:  new Date().toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
-      prevSales:  state.currentSales,
-      newSales:   state.currentSales + finalAmt,
+      id:        Date.now().toString(),
+      item:      itemInput.trim(),
+      amount:    finalAmt,
+      timestamp: new Date().toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
+      prevSales: state.currentSales,
+      newSales:  state.currentSales + finalAmt,
+      // bonus가 없을 때 undefined 필드 생성 금지 (Firestore가 undefined를 에러로 처리)
+      ...(bonus > 0 && { baseAmount: baseAmt, bonusPct: bonus }),
     };
     save({ ...state, currentSales: state.currentSales + finalAmt, salesLog: [entry, ...state.salesLog].slice(0, 50) });
     setItem(''); setGold('');
