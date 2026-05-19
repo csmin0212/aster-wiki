@@ -117,7 +117,9 @@ export default function SilverRoadView({ mob }: { mob: boolean }) {
 
   // ── 혜택 선택 ────────────────────────────────────────────────
   const choosePerk = (perkId: PerkId) => {
-    const needed     = salesNeeded(state.level);
+    // 안전 가드: 최고 레벨이면 패널 닫기만
+    if (state.level >= MAX_LEVEL) { setPending(false); return; }
+
     const goldReward = getGoldReward(state.level);
     const perkLabels: Record<PerkId, string> = {
       sell: "판매 가격 +10%",
@@ -135,16 +137,16 @@ export default function SilverRoadView({ mob }: { mob: boolean }) {
       item: "", amount: 0,
       timestamp: new Date().toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
       prevSales: state.currentSales,
-      newSales: state.currentSales - needed,
+      newSales: 0,                   // 레벨업 후 카운터 0으로 리셋
       levelUp: state.level + 1,
       perkLabel: perkLabels[perkId],
     };
     save({
       ...state,
-      level: state.level + 1,
-      currentSales: state.currentSales - needed,
-      pickedPerks: [...state.pickedPerks, perk],
-      salesLog: [entry, ...state.salesLog].slice(0, 50),
+      level:        state.level + 1,
+      currentSales: 0,               // 레벨업마다 판매 통 초기화
+      pickedPerks:  [...state.pickedPerks, perk],
+      salesLog:     [entry, ...state.salesLog].slice(0, 50),
     });
     setPending(false);
   };
@@ -284,7 +286,7 @@ export default function SilverRoadView({ mob }: { mob: boolean }) {
       </div>
 
       {/* ── 레벨업 선택 패널 ──────────────────────────────── */}
-      {pendingChoice && (
+      {pendingChoice && state.level < MAX_LEVEL && (
         <div style={{
           background: "linear-gradient(135deg, #0D1E35 0%, #162E50 100%)",
           border: `2px solid ${BLUE_BDR}`,
