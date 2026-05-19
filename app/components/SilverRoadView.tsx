@@ -45,7 +45,9 @@ interface PerkChoice {
 interface SalesLogEntry {
   id: string;
   item: string;
-  amount: number;
+  amount: number;       // 보너스 적용 후 최종 금액
+  baseAmount?: number;  // 보너스 적용 전 원래 금액
+  bonusPct?: number;    // 적용된 보너스 %
   timestamp: string;
   prevSales: number;
   newSales: number;
@@ -87,19 +89,23 @@ export default function SilverRoadView({ mob }: { mob: boolean }) {
     <div style={{ padding: "60px 48px", color: "#AAA", fontSize: "14px" }}>불러오는 중…</div>
   );
 
-  // ── 판매 추가 ────────────────────────────────────────────────
+  // ── 판매 추가 (보너스 자동 적용) ────────────────────────────
   const addSale = () => {
-    const amt = parseInt(goldInput);
-    if (!itemInput.trim() || isNaN(amt) || amt <= 0) return;
+    const baseAmt = parseInt(goldInput);
+    if (!itemInput.trim() || isNaN(baseAmt) || baseAmt <= 0) return;
+    const bonus    = state.pickedPerks.filter(p => p.perkId === "sell").length * 10;
+    const finalAmt = bonus > 0 ? Math.round(baseAmt * (1 + bonus / 100)) : baseAmt;
     const entry: SalesLogEntry = {
-      id: Date.now().toString(),
-      item: itemInput.trim(),
-      amount: amt,
-      timestamp: new Date().toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
-      prevSales: state.currentSales,
-      newSales: state.currentSales + amt,
+      id:         Date.now().toString(),
+      item:       itemInput.trim(),
+      amount:     finalAmt,
+      baseAmount: bonus > 0 ? baseAmt : undefined,
+      bonusPct:   bonus > 0 ? bonus   : undefined,
+      timestamp:  new Date().toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
+      prevSales:  state.currentSales,
+      newSales:   state.currentSales + finalAmt,
     };
-    save({ ...state, currentSales: state.currentSales + amt, salesLog: [entry, ...state.salesLog].slice(0, 50) });
+    save({ ...state, currentSales: state.currentSales + finalAmt, salesLog: [entry, ...state.salesLog].slice(0, 50) });
     setItem(''); setGold('');
   };
 
@@ -356,6 +362,16 @@ export default function SilverRoadView({ mob }: { mob: boolean }) {
             추가
           </button>
         </div>
+        {/* 판매 보너스 미리보기 */}
+        {sellBonus > 0 && goldInput && parseInt(goldInput) > 0 && (() => {
+          const base  = parseInt(goldInput);
+          const final = Math.round(base * (1 + sellBonus / 100));
+          return (
+            <div style={{ marginTop: 8, fontSize: "12px", color: BLUE, fontWeight: 600 }}>
+              📈 판매 +{sellBonus}% 적용 → {base.toLocaleString()}G → <span style={{ color: "#1A7A3C" }}>{final.toLocaleString()}G</span>
+            </div>
+          );
+        })()}
         <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
           <button onClick={hardReset} style={{ padding: "7px 12px", background: "#FFF0EE", color: "#E74C3C", border: "1px solid #FFCDD2", borderRadius: 6, fontSize: "12px", cursor: "pointer" }}>
             하드 리셋
@@ -452,7 +468,12 @@ export default function SilverRoadView({ mob }: { mob: boolean }) {
                   <>
                     <span style={{ fontWeight: 600, color: "#444" }}>{e.item}</span>
                     <span style={{ color: "#777" }}> 판매 </span>
-                    <span style={{ color: BLUE, fontWeight: 700 }}>+{e.amount.toLocaleString()}G</span>
+                    <span style={{ color: "#1A7A3C", fontWeight: 700 }}>+{e.amount.toLocaleString()}G</span>
+                    {e.bonusPct && e.baseAmount && (
+                      <span style={{ color: BLUE, fontSize: "11px", fontWeight: 600, marginLeft: 4 }}>
+                        ↑+{e.bonusPct}% <span style={{ color: "#999", fontWeight: 400 }}>(원가 {e.baseAmount.toLocaleString()}G)</span>
+                      </span>
+                    )}
                     <span style={{ color: "#AAA", fontSize: "11px" }}> ({e.prevSales.toLocaleString()}→{e.newSales.toLocaleString()})</span>
                   </>
                 )}

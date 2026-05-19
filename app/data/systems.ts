@@ -19,11 +19,12 @@ export const GODDESS_SKILLS: Skill[] = [
   { id: "t1_matk",  tier: 1, name: "마법 공격력 +3",      effect: "마법 공격력 3 증가",            requires: [], bonuses: [{ stat: "마법공격", value: 3 }] },
   { id: "t1_pdef",  tier: 1, name: "물리 방어력 +3",      effect: "물리 방어력 3 증가",            requires: [], bonuses: [{ stat: "물리방어", value: 3 }] },
   { id: "t1_mdef",  tier: 1, name: "마법 방어력 +3",      effect: "마법 방어력 3 증가",            requires: [], bonuses: [{ stat: "마법방어", value: 3 }] },
-  { id: "t1_hit",   tier: 1, name: "명중 +1",             effect: "명중 판정에 +1",                requires: [], bonuses: [{ stat: "명중", value: 1 }] },
-  { id: "t1_react", tier: 1, name: "리액션 +1",           effect: "리액션 판정에 +1",              requires: [], bonuses: [{ stat: "리액션", value: 1 }] },
+  { id: "t1_hit",   tier: 1, name: "명중 +2",             effect: "명중 판정에 +2",                requires: [], bonuses: [{ stat: "명중", value: 2 }] },
+  { id: "t1_react", tier: 1, name: "리액션 +2",           effect: "리액션 판정에 +2",              requires: [], bonuses: [{ stat: "리액션", value: 2 }] },
   { id: "t1_drop",  tier: 1, name: "드롭 +1D",            effect: "드롭 아이템 굴림에 +1D",        requires: [], bonuses: [{ stat: "드롭", value: 1 }] },
   { id: "t1_fate",  tier: 1, name: "페이트 상한 +1",      effect: "페이트 상한 1 증가",            requires: [], bonuses: [{ stat: "페이트", value: 1 }] },
   { id: "t1_bad",   tier: 1, name: "배드 스테이터스 +1",  effect: "배드 스테이터스 강도 1 증가",   requires: [], bonuses: [{ stat: "배드", value: 1 }] },
+  { id: "t1_spatk", tier: 1, name: "특수 공격력 +3",      effect: "특수 공격력 3 증가",             requires: [], bonuses: [{ stat: "특수공격", value: 3 }] },
 
   // ── Tier 2 ──────────────────────────────────────────────────
   { id: "t2_hpmp",   tier: 2, name: "최대 HP·MP +10",     effect: "최대 HP와 MP 각 10 증가",       requires: ["t1_hp", "t1_mp"],     bonuses: [{ stat: "HP", value: 10 }, { stat: "MP", value: 10 }] },
@@ -36,6 +37,7 @@ export const GODDESS_SKILLS: Skill[] = [
   { id: "t2_fate_b", tier: 2, name: "페이트 상한 +1",      effect: "페이트 상한 1 증가",           requires: ["t1_fate"],            bonuses: [{ stat: "페이트", value: 1 }] },
   { id: "t2_bad_a",  tier: 2, name: "배드 스테이터스 +1",  effect: "배드 스테이터스 강도 1 증가",  requires: ["t1_bad"],             bonuses: [{ stat: "배드", value: 1 }] },
   { id: "t2_bad_b",  tier: 2, name: "배드 스테이터스 +1",  effect: "배드 스테이터스 강도 1 증가",  requires: ["t1_bad"],             bonuses: [{ stat: "배드", value: 1 }] },
+  { id: "t2_advatk", tier: 2, name: "공격력 +4",           effect: "특수 공격력 4 증가",            requires: ["t1_spatk"],            bonuses: [{ stat: "특수공격", value: 4 }] },
 
   // ── 고급 특성 (포인트 5 소모) ────────────────────────────────
   { id: "adv_judge", tier: 3, name: "모든 판정 +1D",   effect: "모든 판정 굴림에 +1D 추가",   requires: [], cost: 5, bonuses: [{ stat: "판정D",    value: 1  }] },
@@ -57,7 +59,7 @@ export interface SkillBranch {
   label: string;
   t1: string[];
   t2: string[];
-  pattern: "2→1" | "1→2";
+  pattern: "2→1" | "1→2" | "1→1";
 }
 
 export const SKILL_BRANCHES: SkillBranch[] = [
@@ -68,6 +70,7 @@ export const SKILL_BRANCHES: SkillBranch[] = [
   { id: "drop",  label: "드롭",   t1: ["t1_drop"],               t2: ["t2_drop_a", "t2_drop_b"],   pattern: "1→2" },
   { id: "fate",  label: "페이트", t1: ["t1_fate"],               t2: ["t2_fate_a", "t2_fate_b"],   pattern: "1→2" },
   { id: "bad",   label: "배드",   t1: ["t1_bad"],                t2: ["t2_bad_a", "t2_bad_b"],     pattern: "1→2" },
+  { id: "spatk", label: "특수공격", t1: ["t1_spatk"],             t2: ["t2_advatk"],                pattern: "1→1" },
 ];
 
 // ─── 레벨별 효과 ──────────────────────────────────────────────
@@ -137,7 +140,5 @@ export const DEFAULT_LEVEL_STATE: LevelState = {
 };
 
 export function expNeeded(level: number): number {
-  if (level <= 5)  return level * 10;               // 10·20·30·40·50
-  if (level <= 9)  return 50 + (level - 5) * 5;    // 55·60·65·70
-  return 100 + (level - 10) * 10;                   // 100·110·120 …
+  return level * 10;  // 10·20·30·40·50·60…
 }

@@ -122,7 +122,7 @@ function SkillCard({
 function BranchConnector({
   pattern, t1Picked, t2Picked,
 }: {
-  pattern: "2→1" | "1→2";
+  pattern: "2→1" | "1→2" | "1→1";
   t1Picked: boolean;
   t2Picked: boolean;
 }) {
@@ -141,11 +141,13 @@ function BranchConnector({
           <line x1={c1}  y1={0} x2={mid} y2={CONN_H} stroke={strokeColor} strokeWidth={strokeW} strokeDasharray={strokeDash} />
           <line x1={c2}  y1={0} x2={mid} y2={CONN_H} stroke={strokeColor} strokeWidth={strokeW} strokeDasharray={strokeDash} />
         </>
-      ) : (
+      ) : pattern === "1→2" ? (
         <>
           <line x1={mid} y1={0} x2={c1}  y2={CONN_H} stroke={strokeColor} strokeWidth={strokeW} strokeDasharray={strokeDash} />
           <line x1={mid} y1={0} x2={c2}  y2={CONN_H} stroke={strokeColor} strokeWidth={strokeW} strokeDasharray={strokeDash} />
         </>
+      ) : (
+        <line x1={mid} y1={0} x2={mid} y2={CONN_H} stroke={strokeColor} strokeWidth={strokeW} strokeDasharray={strokeDash} />
       )}
     </svg>
   );
@@ -219,6 +221,7 @@ function BranchView({
           {branch.t2.map(renderCard)}
         </div>
       )}
+
     </div>
   );
 }
@@ -240,6 +243,7 @@ function EffectsPanel({ pickedSkills }: { pickedSkills: string[] }) {
     { stat: "MP",     label: "최대 MP",          unit: "" },
     { stat: "물리공격", label: "물리 공격력",    unit: "" },
     { stat: "마법공격", label: "마법 공격력",    unit: "" },
+    { stat: "특수공격", label: "특수 공격력",    unit: "" },
     { stat: "물리방어", label: "물리 방어력",    unit: "" },
     { stat: "마법방어", label: "마법 방어력",    unit: "" },
     { stat: "명중",   label: "명중",              unit: "" },
