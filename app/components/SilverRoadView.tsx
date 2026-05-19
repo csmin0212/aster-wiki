@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react'; // useEffect: ctx 닫기용
 import { useSharedState } from '../lib/useSharedState';
 const BLUE        = "#2A5F9E";
 const BLUE_BDR    = "#7AAFD4";
@@ -60,6 +60,7 @@ interface SRState {
   currentSales: number;
   pickedPerks: PerkChoice[];
   salesLog: SalesLogEntry[];
+  pendingLevelUp?: boolean;   // 레벨업 혜택 선택 대기 중
 }
 
 const DEFAULT_STATE: SRState = {
@@ -67,17 +68,17 @@ const DEFAULT_STATE: SRState = {
   currentSales: 0,
   pickedPerks: [],
   salesLog: [],
+  pendingLevelUp: false,
 };
 
 // ─── 컴포넌트 ────────────────────────────────────────────────
 
 export default function SilverRoadView({ mob }: { mob: boolean }) {
-  const { state, save, loaded }     = useSharedState<SRState>('silver-road', DEFAULT_STATE);
-  const [itemInput, setItem]        = useState('');
-  const [goldInput, setGold]        = useState('');
-  const [pendingChoice, setPending] = useState(false);
-  const [imgErr, setImgErr]         = useState(false);
-  const [ctx, setCtx]               = useState<{ id: string; x: number; y: number } | null>(null);
+  const { state, save, loaded } = useSharedState<SRState>('silver-road', DEFAULT_STATE);
+  const [itemInput, setItem]   = useState('');
+  const [goldInput, setGold]   = useState('');
+  const [imgErr, setImgErr]    = useState(false);
+  const [ctx, setCtx]          = useState<{ id: string; x: number; y: number } | null>(null);
 
   useEffect(() => {
     const close = () => setCtx(null);
@@ -112,13 +113,13 @@ export default function SilverRoadView({ mob }: { mob: boolean }) {
   // ── 레벨업 버튼 ──────────────────────────────────────────────
   const startLevelUp = () => {
     if (state.level >= MAX_LEVEL || state.currentSales < salesNeeded(state.level)) return;
-    setPending(true);
+    // pendingLevelUp을 Firestore state에 저장 → 로컬 React state 타이밍 문제 없음
+    save({ ...state, pendingLevelUp: true });
   };
 
   // ── 혜택 선택 ────────────────────────────────────────────────
   const choosePerk = (perkId: PerkId) => {
-    // 안전 가드: 최고 레벨이면 패널 닫기만
-    if (state.level >= MAX_LEVEL) { setPending(false); return; }
+    if (state.level >= MAX_LEVEL) { save({ ...state, pendingLevelUp: false }); return; }
 
     const goldReward = getGoldReward(state.level);
     const perkLabels: Record<PerkId, string> = {
@@ -137,18 +138,18 @@ export default function SilverRoadView({ mob }: { mob: boolean }) {
       item: "", amount: 0,
       timestamp: new Date().toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
       prevSales: state.currentSales,
-      newSales: 0,                   // 레벨업 후 카운터 0으로 리셋
+      newSales: 0,
       levelUp: state.level + 1,
       perkLabel: perkLabels[perkId],
     };
     save({
       ...state,
-      level:        state.level + 1,
-      currentSales: 0,               // 레벨업마다 판매 통 초기화
-      pickedPerks:  [...state.pickedPerks, perk],
-      salesLog:     [entry, ...state.salesLog].slice(0, 50),
+      level:          state.level + 1,
+      currentSales:   0,
+      pendingLevelUp: false,          // Firestore에 저장 → 패널 즉시 닫힘
+      pickedPerks:    [...state.pickedPerks, perk],
+      salesLog:       [entry, ...state.salesLog].slice(0, 50),
     });
-    setPending(false);
   };
 
   // ── 로그 항목 삭제 (수치 역산) ──────────────────────────────
@@ -161,10 +162,11 @@ export default function SilverRoadView({ mob }: { mob: boolean }) {
       // 레벨업 항목 → 레벨·판매액·혜택 되돌리기
       save({
         ...state,
-        level:        entry.levelUp - 1,
-        currentSales: entry.prevSales,
-        pickedPerks:  state.pickedPerks.filter(p => p.level !== entry.levelUp),
-        salesLog:     newLog,
+        level:          entry.levelUp - 1,
+        currentSales:   entry.prevSales,
+        pendingLevelUp: false,
+        pickedPerks:    state.pickedPerks.filter(p => p.level !== entry.levelUp),
+        salesLog:       newLog,
       });
     } else {
       // 일반 판매 항목 → 판매액 차감
@@ -180,7 +182,6 @@ export default function SilverRoadView({ mob }: { mob: boolean }) {
   const hardReset = () => {
     if (!confirm('레벨·판매 기록·혜택·로그 전부 초기화됩니다.')) return;
     save(DEFAULT_STATE);
-    setPending(false);
   };
 
   // ── 파생 값 ──────────────────────────────────────────────────
@@ -242,7 +243,7 @@ export default function SilverRoadView({ mob }: { mob: boolean }) {
             <div style={{ background: BLUE, color: "#fff", borderRadius: 6, padding: "3px 12px", fontSize: "14px", fontWeight: 700 }}>
               Lv. {state.level}
             </div>
-            {canLevelUp && !pendingChoice && (
+            {canLevelUp && !state.pendingLevelUp && (
               <button onClick={startLevelUp} style={{
                 background: "#C0392B", color: "#fff",
                 border: "none", borderRadius: 6,
@@ -286,7 +287,7 @@ export default function SilverRoadView({ mob }: { mob: boolean }) {
       </div>
 
       {/* ── 레벨업 선택 패널 ──────────────────────────────── */}
-      {pendingChoice && state.level < MAX_LEVEL && (
+      {state.pendingLevelUp && state.level < MAX_LEVEL && (
         <div style={{
           background: "linear-gradient(135deg, #0D1E35 0%, #162E50 100%)",
           border: `2px solid ${BLUE_BDR}`,
