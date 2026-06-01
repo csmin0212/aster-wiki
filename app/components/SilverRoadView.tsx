@@ -133,20 +133,24 @@ export default function SilverRoadView({ mob }: { mob: boolean }) {
       label: perkLabels[perkId],
       goldAmount: perkId === "gold" ? goldReward : undefined,
     };
+    // 레벨업 기준치 초과분을 다음 레벨로 이월
+    const needed  = salesNeeded(state.level);
+    const carried = Math.max(0, state.currentSales - needed);
+
     const entry: SalesLogEntry = {
       id: (Date.now() + 1).toString(),
       item: "", amount: 0,
       timestamp: new Date().toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
       prevSales: state.currentSales,
-      newSales: 0,
-      levelUp: state.level + 1,
+      newSales:  carried,
+      levelUp:   state.level + 1,
       perkLabel: perkLabels[perkId],
     };
     save({
       ...state,
       level:          state.level + 1,
-      currentSales:   0,
-      pendingLevelUp: false,          // Firestore에 저장 → 패널 즉시 닫힘
+      currentSales:   carried,          // 0 대신 초과분 이월
+      pendingLevelUp: false,
       pickedPerks:    [...state.pickedPerks, perk],
       salesLog:       [entry, ...state.salesLog].slice(0, 50),
     });
