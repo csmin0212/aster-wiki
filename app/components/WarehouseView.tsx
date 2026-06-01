@@ -33,7 +33,7 @@ interface WarehouseLog {
   newTotal:  number;
 }
 
-interface GoldLog {
+export interface GoldLog {
   id:        string;
   action:    "deposit" | "withdraw";
   amount:    number;
@@ -43,14 +43,15 @@ interface GoldLog {
   newGold:   number;
 }
 
-interface WHState {
+export interface WHState {
   items:    WarehouseItem[];
   log:      WarehouseLog[];
   gold:     number;
   goldLog:  GoldLog[];
 }
 
-const DEFAULT_STATE: WHState = { items: [], log: [], gold: 0, goldLog: [] };
+export const WAREHOUSE_DEFAULT: WHState = { items: [], log: [], gold: 0, goldLog: [] };
+const DEFAULT_STATE = WAREHOUSE_DEFAULT;
 
 type SortKey = "newest" | "weight" | "price";
 type GoldMode = null | "deposit" | "withdraw";

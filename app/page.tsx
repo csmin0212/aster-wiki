@@ -7,6 +7,7 @@ import GoddessView from "./components/GoddessView";
 import SilverRoadView from "./components/SilverRoadView";
 import ElinView from "./components/ElinView";
 import WarehouseView from "./components/WarehouseView";
+import CloverView from "./components/CloverView";
 
 // ─── 대륙 지도 ───────────────────────────────────────────────
 
@@ -252,7 +253,8 @@ type ActiveView =
   | { type: "goddess" }
   | { type: "silver-road" }
   | { type: "elin" }
-  | { type: "warehouse" };
+  | { type: "warehouse" }
+  | { type: "clover" };
 
 export default function NationsWiki() {
   const [activeView, setActiveView] = useState<ActiveView>({ type: "nation", nationId: "cardea" });
@@ -330,6 +332,7 @@ export default function NationsWiki() {
             { type: "silver-road",icon: "🪙", label: "실버로드",    color: "#2A5F9E" },
             { type: "elin",       icon: "🌸", label: "엘린",        color: "#B85C6E" },
             { type: "warehouse",  icon: "📦", label: "공용 창고",   color: "#7B5EA7" },
+            { type: "clover",     icon: "🍀", label: "클로버 상회", color: "#2F8F57" },
           ] as const).map(item => {
             const isActive = activeView.type === item.type;
             return (
@@ -372,6 +375,8 @@ export default function NationsWiki() {
           ? <ElinView mob={mob} />
           : activeView.type === "warehouse"
           ? <WarehouseView mob={mob} />
+          : activeView.type === "clover"
+          ? <CloverView mob={mob} />
           : <NationView n={n} mob={mob} activeId={activeNationId} onSelect={selectNation} onLocClick={setSelLoc}/>
         }
       </main>
