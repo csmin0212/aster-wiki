@@ -63,6 +63,35 @@ export const npcGroups: NpcGroup[] = [
     ],
   },
 
+  // 모그라이헴 산악연합
+  {
+    id: "mograheim-brindi-excavation",
+    name: "브린디 발굴단",
+    nationId: "mograheim",
+    npcs: [
+      { id: "brindi", name: "브린디", title: "발굴대장", image: "/npcs/mograheim/brindi.jpg" },
+      { id: "lorun", name: "로른", image: "/npcs/mograheim/lorun.jpg" },
+    ],
+  },
+
+  // 리에트 자유시연합
+  {
+    id: "riet-panel",
+    name: "곡창 도시 파넬",
+    nationId: "riet",
+    npcs: [
+      { id: "harte", name: "하르트", title: "경비대장", image: "/npcs/riet/harte.jpg" },
+    ],
+  },
+  {
+    id: "riet-clover",
+    name: "클로버 상회",
+    nationId: "riet",
+    npcs: [
+      { id: "sera", name: "세라", image: "/npcs/riet/sera.jpg" },
+    ],
+  },
+
   // 발하르트 방벽령
   {
     id: "valhart-arkbalt",
