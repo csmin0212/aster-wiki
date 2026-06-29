@@ -20,7 +20,18 @@ export const ELIN_BOOKS: ElinBook[] = [
       "첫 번째 별의 기억이 떠오르고\n" +
       "거짓된 역사를 바로잡으리라.",
   },
-  { id: 2,  title: "신탁 연대기 II",   unlocked: false, content: "" },
+  {
+    id: 2,
+    title: "신탁 연대기 II",
+    unlocked: true,
+    content:
+      "한 아이가 있었다.\n" +
+      "웃는 얼굴 아래 불타는 꿈을 숨긴 아이였다.\n\n" +
+      "아픈 이들에게 손을 내미는 동안에도,\n" +
+      "제 안의 불만은 끝내 끄지 못했다.\n\n" +
+      "더는 건넬 것이 없어 빈손을 떨던 그 순간,\n" +
+      "금빛 알갱이가 아이의 마음 깊은 곳에 내려앉았다.",
+  },
   { id: 3,  title: "신탁 연대기 III",  unlocked: false, content: "" },
   { id: 4,  title: "신탁 연대기 IV",   unlocked: false, content: "" },
   { id: 5,  title: "신탁 연대기 V",    unlocked: false, content: "" },
