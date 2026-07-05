@@ -1,0 +1,35 @@
+rules_version = '2';
+
+// ─────────────────────────────────────────────────────────────
+// 아스테르 위키 Firestore 보안 규칙
+//
+// 이 앱은 로그인이 없고, 파티원 전원이 같은 공유 상태
+// (app_state 컬렉션)를 함께 읽고 씁니다.
+//
+// ⚠ 중요: Firebase 콘솔에서 "테스트 모드"로 만든 규칙은
+//   30일 뒤 자동 만료되어 모든 읽기/쓰기가 거부됩니다.
+//   → 화면이 기기마다 다르게 보이는 주된 원인.
+//   아래 규칙은 만료가 없습니다.
+//
+// 반영 방법(둘 중 하나):
+//  A) Firebase 콘솔 → Firestore Database → 규칙(Rules) 탭에
+//     이 내용을 붙여넣고 "게시(Publish)"
+//  B) firebase CLI: firebase deploy --only firestore:rules
+// ─────────────────────────────────────────────────────────────
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 공유 앱 상태: warehouse / silver-road / goddess / elin / clover 등
+    // 로그인이 없으므로 인증 없이 읽기/쓰기를 허용한다.
+    // (소규모 비공개 파티 위키 용도 — 누구나 쓸 수 있음을 감안)
+    match /app_state/{docId} {
+      allow read, write: if true;
+    }
+
+    // 그 외 모든 경로는 차단
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
