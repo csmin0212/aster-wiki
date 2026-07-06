@@ -76,6 +76,15 @@ export const npcGroups: NpcGroup[] = [
 
   // 리에트 자유시연합
   {
+    id: "riet-miet",
+    name: "하류 도시 미에트",
+    nationId: "riet",
+    npcs: [
+      { id: "berdio", name: "베르디오 F. 라이넬", title: "의장", image: "/npcs/riet/berdio.jpg" },
+      { id: "filein", name: "필레인", title: "수석 보좌관", image: "/npcs/riet/filein.jpg" },
+    ],
+  },
+  {
     id: "riet-panel",
     name: "곡창 도시 파넬",
     nationId: "riet",
