@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef, ReactNode } from "react";
 import { nations, Nation, Location } from "./data/nations";
 import { npcGroups, NpcGroup, Npc, PARTY_CORE, PARTY_COMPANIONS } from "./data/npcs";
+import { useSharedState } from "./lib/useSharedState";
+import ImageCropper from "./components/ImageCropper";
 import GoddessView from "./components/GoddessView";
 import SilverRoadView from "./components/SilverRoadView";
 import ElinView from "./components/ElinView";
@@ -104,15 +106,41 @@ function LocModal({ loc, color, onClose }: LocModalProps) {
 
 // ─── NPC 카드 ────────────────────────────────────────────────
 
-function NpcAvatar({ npc, color }: { npc: Npc; color: string }) {
-  const [imgError, setImgError] = useState(false);
+function NpcAvatar({ npc, color, override, onPick, onClear }: {
+  npc: Npc;
+  color: string;
+  override?: string;          // 사용자가 올린 사진 (있으면 npc.image보다 우선)
+  onPick?: () => void;        // 사진 넣기
+  onClear?: () => void;       // 올린 사진 지우기
+}) {
+  const [errSrc, setErrSrc] = useState<string | null>(null);
+  const [hover, setHover]   = useState(false);
+
+  const src    = override || npc.image;
+  const failed = !!src && errSrc === src;
+  const shown  = !!src && !failed;
+
   return (
     <div style={{display:"flex",alignItems:"center",gap:12,padding:"10px 16px",background:"#fff",border:"1px solid #E8E3DA",borderRadius:8,borderLeft:`3px solid ${color}40`}}>
-      <div style={{width:44,height:44,borderRadius:6,overflow:"hidden",background:"#F1EFE8",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
-        {npc.image && !imgError
-          ? <img src={npc.image} alt={npc.name} onError={()=>setImgError(true)} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+      <div
+        onClick={onPick}
+        onContextMenu={e => { if (override && onClear) { e.preventDefault(); onClear(); } }}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        title={override ? "클릭 → 사진 교체 / 우클릭 → 사진 지우기" : "클릭 → 사진 넣기"}
+        style={{position:"relative",width:44,height:44,borderRadius:6,overflow:"hidden",background:"#F1EFE8",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",cursor:onPick?"pointer":"default"}}
+      >
+        {shown
+          ? <img src={src} alt={npc.name} onError={()=>setErrSrc(src!)} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
           : <span style={{fontSize:"18px",color:"#bbb"}}>👤</span>
         }
+
+        {/* 사진 위에 뜨는 넣기 버튼 */}
+        {onPick && hover && (
+          <div style={{position:"absolute",inset:0,background:"rgba(20,18,14,0.55)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"15px"}}>
+            📷
+          </div>
+        )}
       </div>
       <div>
         {npc.title && <div style={{fontSize:"11px",color,fontWeight:600,marginBottom:2}}>[{npc.title}]</div>}
@@ -124,10 +152,62 @@ function NpcAvatar({ npc, color }: { npc: Npc; color: string }) {
 
 // ─── 인물 뷰 ────────────────────────────────────────────────
 
+// 인물 사진은 모두가 공유하는 Firestore 문서 하나에 모여 있다.
+// 문서 크기 제한(1MB)에 여유를 두기 위한 상한.
+const IMAGES_MAX_BYTES = 800_000;
+
 function NpcsView({ mob }: { mob: boolean }) {
   const nationOrder = ["cardea","silvana","mograheim","riet","karansa","valhart"];
   const [tab, setTab] = useState<"party" | "nation">("party");
   const PARTY_COLOR = "#7B5EA7";
+
+  // 인물 id → data URI. 저장하면 모든 사람 화면에 반영된다.
+  const images = useSharedState<Record<string, string>>("npc-images", {});
+  const fileRef  = useRef<HTMLInputElement>(null);
+  const targetId = useRef<string | null>(null);
+  const [pending, setPending] = useState<{ id: string; file: File } | null>(null);
+  const [err, setErr] = useState("");
+
+  const pick = (id: string) => {
+    setErr("");
+    targetId.current = id;
+    if (fileRef.current) { fileRef.current.value = ""; fileRef.current.click(); }
+  };
+
+  const clear = (id: string) => {
+    const next = { ...images.state };
+    delete next[id];
+    images.save(next);
+  };
+
+  const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const id   = targetId.current;
+    targetId.current = null;
+    if (!file || !id) return;
+    setErr("");
+    setPending({ id, file });   // 자르기 화면으로 넘긴다
+  };
+
+  const onCropped = (dataUrl: string) => {
+    if (!pending) return;
+    const next = { ...images.state, [pending.id]: dataUrl };
+
+    // 전체 용량이 한도를 넘으면 저장하지 않는다 (넘기면 아무도 못 읽게 됨)
+    if (JSON.stringify(next).length > IMAGES_MAX_BYTES) {
+      setErr("사진 저장 공간이 거의 찼습니다. 쓰지 않는 사진을 지운 뒤 다시 시도해주세요. (사진 위에서 우클릭)");
+      setPending(null);
+      return;
+    }
+    images.save(next);
+    setPending(null);
+  };
+
+  const avatarProps = (id: string) => ({
+    override: images.state[id],
+    onPick:   () => pick(id),
+    onClear:  () => clear(id),
+  });
 
   return (
     <div style={{maxWidth:720,padding:mob?"20px 20px 60px":"28px 48px 80px"}}>
@@ -136,6 +216,21 @@ function NpcsView({ mob }: { mob: boolean }) {
         <h1 style={{fontFamily:"'Noto Serif KR',serif",fontSize:mob?"22px":"28px",fontWeight:700,color:"#2a2a2a",marginBottom:4}}>인물 사전</h1>
         <p style={{fontSize:"13px",color:"#888",lineHeight:1.7}}>세션에서 만난 NPC와 주요 인물들.</p>
       </div>
+
+      <input ref={fileRef} type="file" accept="image/*" onChange={onFile} style={{display:"none"}}/>
+
+      {pending && (
+        <ImageCropper
+          file={pending.file}
+          mob={mob}
+          onCancel={() => setPending(null)}
+          onDone={onCropped}
+        />
+      )}
+
+      {err && (
+        <div style={{fontSize:"12px",color:"#C0392B",fontWeight:600,marginBottom:12,lineHeight:1.6}}>⚠ {err}</div>
+      )}
 
       {/* 탭 전환 */}
       <div style={{display:"flex",gap:6,marginBottom:28,borderBottom:"1px solid #E8E3DA"}}>
@@ -161,7 +256,7 @@ function NpcsView({ mob }: { mob: boolean }) {
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:6}}>
               {PARTY_CORE.map(npc => (
-                <NpcAvatar key={npc.id} npc={npc} color={PARTY_COLOR}/>
+                <NpcAvatar key={npc.id} npc={npc} color={PARTY_COLOR} {...avatarProps(npc.id)}/>
               ))}
             </div>
           </div>
@@ -171,7 +266,7 @@ function NpcsView({ mob }: { mob: boolean }) {
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:6}}>
               {PARTY_COMPANIONS.map(npc => (
-                <NpcAvatar key={npc.id} npc={npc} color={PARTY_COLOR}/>
+                <NpcAvatar key={npc.id} npc={npc} color={PARTY_COLOR} {...avatarProps(npc.id)}/>
               ))}
             </div>
           </div>
@@ -200,7 +295,7 @@ function NpcsView({ mob }: { mob: boolean }) {
                 </div>
                 <div style={{display:"flex",flexDirection:"column",gap:6}}>
                   {group.npcs.map(npc => (
-                    <NpcAvatar key={npc.id} npc={npc} color={nation.color}/>
+                    <NpcAvatar key={npc.id} npc={npc} color={nation.color} {...avatarProps(npc.id)}/>
                   ))}
                 </div>
               </div>
