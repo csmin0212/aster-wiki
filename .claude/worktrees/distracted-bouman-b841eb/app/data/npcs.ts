@@ -15,14 +15,6 @@ export interface NpcGroup {
 export const npcGroups: NpcGroup[] = [
   // 카르데아 왕국
   {
-    id: "cardea-lumiel-cathedral",
-    name: "루미엘 대신전",
-    nationId: "cardea",
-    npcs: [
-      { id: "violet", name: "바이올렛", title: "주교", image: "/npcs/cardea/violet.jpg" },
-    ],
-  },
-  {
     id: "cardea-berna-cathedral",
     name: "베르나 대신전",
     nationId: "cardea",
@@ -71,44 +63,6 @@ export const npcGroups: NpcGroup[] = [
     ],
   },
 
-  // 모그라이헴 산악연합
-  {
-    id: "mograheim-brindi-excavation",
-    name: "브린디 발굴단",
-    nationId: "mograheim",
-    npcs: [
-      { id: "brindi", name: "브린디", title: "발굴대장", image: "/npcs/mograheim/brindi.jpg" },
-      { id: "lorun", name: "로른", image: "/npcs/mograheim/lorun.jpg" },
-    ],
-  },
-
-  // 리에트 자유시연합
-  {
-    id: "riet-miet",
-    name: "하류 도시 미에트",
-    nationId: "riet",
-    npcs: [
-      { id: "berdio", name: "베르디오 F. 라이넬", title: "의장", image: "/npcs/riet/berdio.jpg" },
-      { id: "filein", name: "필레인", title: "수석 보좌관", image: "/npcs/riet/filein.jpg" },
-    ],
-  },
-  {
-    id: "riet-panel",
-    name: "곡창 도시 파넬",
-    nationId: "riet",
-    npcs: [
-      { id: "harte", name: "하르트", title: "경비대장", image: "/npcs/riet/harte.jpg" },
-    ],
-  },
-  {
-    id: "riet-clover",
-    name: "클로버 상회",
-    nationId: "riet",
-    npcs: [
-      { id: "sera", name: "세라", image: "/npcs/riet/sera.jpg" },
-    ],
-  },
-
   // 발하르트 방벽령
   {
     id: "valhart-arkbalt",
@@ -126,22 +80,4 @@ export const npcGroups: NpcGroup[] = [
       { id: "medeia", name: "메데이아", title: "선익장", image: "/npcs/valhart/medeia.jpg" },
     ],
   },
-];
-
-// ─── 파티 멤버 ───────────────────────────────────────────────
-// 메인 파티(PC) 5명 + 동행인들.
-// 이미지 경로: /npcs/party/<id>.jpg
-
-export const PARTY_CORE: Npc[] = [
-  { id: "serantia", name: "세란티아", image: "/npcs/party/serantia.jpg" },
-  { id: "pecunia",  name: "페쿠니아",  image: "/npcs/party/pecunia.jpg" },
-  { id: "sharen",   name: "샤르엔",   image: "/npcs/party/sharen.jpg" },
-  { id: "riana",    name: "리아나",   image: "/npcs/party/riana.jpg" },
-  { id: "ella",     name: "엘라",     image: "/npcs/party/ella.jpg" },
-];
-
-export const PARTY_COMPANIONS: Npc[] = [
-  { id: "ferret",   name: "페럿",  image: "/npcs/party/ferret.jpg" },
-  { id: "banjjagi", name: "반짝이", image: "/npcs/party/banjjagi.jpg" },
-  { id: "viola",    name: "비올라", title: "출장상인", image: "/npcs/party/viola.jpg" },
 ];
