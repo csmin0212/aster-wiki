@@ -88,20 +88,25 @@ function PhotoViewer({ item, mob, onClose }: {
         padding: mob ? "12px 12px 46px" : "18px 18px 66px",
         borderRadius: 3,
         boxShadow: "0 30px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.08)",
-        maxWidth: 560, width: "100%", cursor: "default",
+        width: "fit-content", maxWidth: "94vw", cursor: "default",
         animation: "cvFrame 0.9s cubic-bezier(0.2,0.9,0.25,1) both",
       }}>
         <div style={{
-          position: "relative", width: "100%", aspectRatio: "4 / 3",
+          position: "relative",
           background: "#161310", overflow: "hidden",
           display: "flex", alignItems: "center", justifyContent: "center",
+          // 사진이 없을 때만 자리를 잡아둔다
+          ...(item.photo && !imgErr ? {} : { width: mob ? 240 : 300, aspectRatio: "4 / 3" }),
         }}>
           {item.photo && !imgErr ? (
             <img
               src={item.photo} alt={item.name}
               onError={() => setImgErr(true)}
               style={{
-                width: "100%", height: "100%", objectFit: "cover", display: "block",
+                display: "block", width: "auto", height: "auto",
+                // 잘라내지 않고 전체를 보여준다 — 화면에 맞춰서만 줄인다
+                maxWidth:  mob ? "76vw" : "min(520px, 72vw)",
+                maxHeight: mob ? "56vh" : "64vh",
                 animation: "cvDevelop 2.4s ease-out both",
               }}
             />
