@@ -159,7 +159,18 @@ const IMAGES_MAX_BYTES = 800_000;
 function NpcsView({ mob }: { mob: boolean }) {
   const nationOrder = ["cardea","silvana","mograheim","riet","karansa","valhart"];
   const [tab, setTab] = useState<"party" | "nation">("party");
+  const [nationTab, setNationTab] = useState("cardea");
   const PARTY_COLOR = "#7B5EA7";
+
+  // 인물이 등록된 국가만 탭으로 띄운다
+  const nationTabs = nationOrder
+    .map(id => ({
+      nation: nations.find(n => n.id === id),
+      groups: npcGroups.filter(g => g.nationId === id),
+    }))
+    .filter((x): x is { nation: Nation; groups: NpcGroup[] } => !!x.nation && x.groups.length > 0);
+
+  const curNation = nationTabs.find(x => x.nation.id === nationTab) ?? nationTabs[0];
 
   // 인물 id → data URI. 저장하면 모든 사람 화면에 반영된다.
   const images = useSharedState<Record<string, string>>("npc-images", {});
@@ -273,36 +284,48 @@ function NpcsView({ mob }: { mob: boolean }) {
         </div>
       )}
 
-      {tab === "nation" && nationOrder.map(nationId => {
-        const nation = nations.find(n => n.id === nationId);
-        const groups = npcGroups.filter(g => g.nationId === nationId);
-        if (!nation || groups.length === 0) return null;
+      {tab === "nation" && curNation && (
+        <>
+          {/* 국가 선택 */}
+          <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:24}}>
+            {nationTabs.map(({ nation }) => {
+              const on = curNation.nation.id === nation.id;
+              return (
+                <button key={nation.id} onClick={()=>setNationTab(nation.id)} style={{
+                  display:"flex",alignItems:"center",gap:6,
+                  padding:mob?"6px 11px":"7px 14px",borderRadius:20,cursor:"pointer",
+                  border:on?`1px solid ${nation.color}`:"1px solid #E3DED4",
+                  background:on?`${nation.color}14`:"#fff",
+                  color:on?nation.color:"#9a9288",
+                  fontSize:mob?"12px":"12.5px",fontWeight:on?700:500,
+                  fontFamily:"'Noto Sans KR',sans-serif",
+                  transition:"all 0.15s ease",whiteSpace:"nowrap",
+                }}>
+                  <span style={{fontSize:"14px"}}>{nation.icon}</span>{nation.name}
+                </button>
+              );
+            })}
+          </div>
 
-        return (
-          <div key={nationId} style={{marginBottom:40}}>
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16,paddingBottom:10,borderBottom:`2px solid ${nation.color}30`}}>
-              <span style={{fontSize:"20px"}}>{nation.icon}</span>
-              <div>
-                <div style={{fontFamily:"'Noto Serif KR',serif",fontSize:"17px",fontWeight:700,color:nation.color}}>{nation.name}</div>
-                <div style={{fontSize:"11px",color:"#aaa",letterSpacing:"0.1em"}}>{nation.nameEn.toUpperCase()}</div>
+          {/* 선택한 국가의 인물 */}
+          <div style={{fontSize:"10px",fontWeight:500,letterSpacing:"0.18em",color:"#B5AEA2",marginBottom:16,paddingBottom:10,borderBottom:`2px solid ${curNation.nation.color}30`}}>
+            {curNation.nation.nameEn.toUpperCase()}
+          </div>
+
+          {curNation.groups.map(group => (
+            <div key={group.id} style={{marginBottom:20}}>
+              <div style={{fontSize:"12px",fontWeight:600,color:"#666",letterSpacing:"0.08em",marginBottom:8,padding:"4px 0",borderBottom:"1px solid #EDE8E0"}}>
+                {group.name}
+              </div>
+              <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                {group.npcs.map(npc => (
+                  <NpcAvatar key={npc.id} npc={npc} color={curNation.nation.color} {...avatarProps(npc.id)}/>
+                ))}
               </div>
             </div>
-
-            {groups.map(group => (
-              <div key={group.id} style={{marginBottom:20}}>
-                <div style={{fontSize:"12px",fontWeight:600,color:"#666",letterSpacing:"0.08em",marginBottom:8,padding:"4px 0",borderBottom:"1px solid #EDE8E0"}}>
-                  {group.name}
-                </div>
-                <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                  {group.npcs.map(npc => (
-                    <NpcAvatar key={npc.id} npc={npc} color={nation.color} {...avatarProps(npc.id)}/>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        );
-      })}
+          ))}
+        </>
+      )}
     </div>
   );
 }
