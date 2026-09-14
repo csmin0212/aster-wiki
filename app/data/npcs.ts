@@ -105,7 +105,7 @@ export const npcGroups: NpcGroup[] = [
     name: "클로버 상회",
     nationId: "riet",
     npcs: [
-      { id: "sera", name: "세라", image: "/npcs/riet/sera.jpg" },
+      { id: "sera", name: "세라", title: "상단주", image: "/npcs/riet/sera.jpg" },
     ],
   },
 
@@ -116,6 +116,14 @@ export const npcGroups: NpcGroup[] = [
     nationId: "valhart",
     npcs: [
       { id: "velk", name: "벨크 팔켄하임", title: "방벽장", image: "/npcs/valhart/velk.jpg" },
+    ],
+  },
+  {
+    id: "valhart-crow-squad",
+    name: "까마귀부대",
+    nationId: "valhart",
+    npcs: [
+      { id: "branwen", name: "브란웬", image: "/npcs/valhart/branwen.jpg" },
     ],
   },
   {
