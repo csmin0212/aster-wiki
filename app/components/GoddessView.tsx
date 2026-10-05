@@ -22,6 +22,9 @@ const CHAR_SKILLS_LIST = [
   { minLevel: 3, name: "신벌 강화Ⅰ",  type: "패시브",                  desc: "신벌! 명중 판정에 +1D" },
   { minLevel: 4, name: "신벌 강화Ⅱ",  type: "패시브",                  desc: "신벌! 대미지에 +2D" },
   { minLevel: 5, name: "빛의 가호",   type: "효과 참조 / 단일 / 시야",  desc: "시나리오 1회. 대미지 굴림 직후, 해당 대미지를 0으로 변경한다." },
+  { minLevel: 7, name: "트레이닝Ⅱ",   type: "패시브",                  desc: "지력·정신 +3, 명중 +1, 마법 방어력 +1" },
+  { minLevel: 8, name: "신벌 강화Ⅲ",  type: "패시브",                  desc: "신벌!로 대상의 HP에 1점 이상 피해를 주었을 시, 대상에게 BS [멍함]을 준다." },
+  { minLevel: 9, name: "신벌 강화Ⅳ",  type: "패시브",                  desc: "신벌! 대미지에 +3D" },
 ];
 
 function computeCharStats(level: number, pickedSkills: string[]) {
@@ -46,6 +49,9 @@ function computeCharStats(level: number, pickedSkills: string[]) {
   if (level >= 2) { str += 3; agi += 3; hp += 3; act += 1; }
   if (level >= 3) { hitDice += 1; }
   if (level >= 4) { dmgDice += 2; }
+  if (level >= 7) { int_ += 3; spi += 3; hitFlat += 1; mdef += 1; }
+  // Lv.8 신벌 강화Ⅲ 은 BS 부여라 수치 변화 없음
+  if (level >= 9) { dmgDice += 3; }
 
   // 여신 특성 보너스
   const t: Record<string, number> = {};
@@ -54,6 +60,9 @@ function computeCharStats(level: number, pickedSkills: string[]) {
     if (!sk?.bonuses) continue;
     for (const b of sk.bonuses) t[b.stat] = (t[b.stat] ?? 0) + b.value;
   }
+
+  // 고급 특성 「모든 판정 +1D」
+  hitDice += t["판정D"] ?? 0;
 
   return {
     hp, str, dex, agi, per, int_, spi, luk,
